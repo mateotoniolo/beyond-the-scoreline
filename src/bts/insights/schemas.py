@@ -19,6 +19,15 @@ class Evidence(BaseModel):
     value: str
 
 
+class AgentStep(BaseModel):
+    """One crew member's turn while producing an insight."""
+
+    agent: str
+    ms: int
+    tool_calls: int = 0
+    ok: bool = True
+
+
 class Insight(BaseModel):
     insight_id: str
     moment_id: str
@@ -30,6 +39,7 @@ class Insight(BaseModel):
     confidence: float = Field(ge=0, le=1)
     verified: bool
     source: Source
+    trace: list[AgentStep] = Field(default_factory=list)
 
 
 class Recap(BaseModel):
