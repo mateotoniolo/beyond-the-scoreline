@@ -6,7 +6,7 @@ import asyncio
 import logging
 
 from bts.insights import templates
-from bts.insights.explainer import RecapOutput, explain
+from bts.insights.explainer import RecapOutput, explain, recap_from_output
 from bts.insights.llm import LLMClient
 from bts.insights.prompts import recap_system, recap_user
 from bts.insights.schemas import Insight, Lang, Profile, Recap
@@ -88,14 +88,4 @@ class InsightService:
         except Exception as exc:  # noqa: BLE001 - any model failure degrades to a template
             log.warning("recap failed: %s", exc)
             return templates.render_recap(snap, moments, profile, lang)
-        paragraphs = [p.strip() for p in out.paragraphs if p.strip()]
-        if not out.title.strip() or not paragraphs:
-            return templates.render_recap(snap, moments, profile, lang)
-        return Recap(
-            profile=profile,
-            lang=lang,
-            title=out.title.strip(),
-            paragraphs=paragraphs,
-            key_moments=out.key_moments,
-            source="llm",
-        )
+        return recap_from_output(out, snap, moments, profile, lang)

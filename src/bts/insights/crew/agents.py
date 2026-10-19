@@ -1,4 +1,4 @@
-"""Agent factories: three model-backed roles sharing one Foundry chat client."""
+"""Agent factories: the model-backed roles sharing one Foundry chat client."""
 
 from __future__ import annotations
 
@@ -9,8 +9,10 @@ from pydantic import BaseModel
 from bts.config import Settings
 from bts.insights.crew import prompts
 from bts.insights.crew.context import MatchContext
+from bts.insights.explainer import RecapOutput
 from bts.insights.foundry import MAX_OUTPUT_TOKENS, REASONING_EFFORT
 from bts.insights.schemas import Evidence, Lang, Profile
+from bts.insights.verifier import ExplainerOutput, VerifierOutput
 
 ANALYST = "tactical_analyst"
 NARRATOR = "narrator"
@@ -55,7 +57,11 @@ def model_options(response_format: type[BaseModel] | None, model: str) -> OpenAI
 def make_analyst(client: OpenAIChatClient, ctx: MatchContext) -> Agent:
     tools = [t for t in ctx.tools() if t.name != "check_numbers"]
     return Agent(
-        client=client, name=ANALYST, instructions=prompts.analyst_instructions(), tools=tools
+        client=client,
+        name=ANALYST,
+        instructions=prompts.analyst_instructions(),
+        tools=tools,
+        default_options=model_options(Analysis, client.model),
     )
 
 
@@ -65,6 +71,7 @@ def make_narrator(client: OpenAIChatClient, profile: Profile, lang: Lang) -> Age
         name=NARRATOR,
         instructions=prompts.narrator_instructions(profile, lang),
         tools=[],
+        default_options=model_options(ExplainerOutput, client.model),
     )
 
 
@@ -75,4 +82,15 @@ def make_fact_checker(client: OpenAIChatClient, ctx: MatchContext) -> Agent:
         name=FACT_CHECKER,
         instructions=prompts.fact_checker_instructions(),
         tools=tools,
+        default_options=model_options(VerifierOutput, client.model),
+    )
+
+
+def make_recap_narrator(client: OpenAIChatClient, profile: Profile, lang: Lang) -> Agent:
+    return Agent(
+        client=client,
+        name=NARRATOR,
+        instructions=prompts.recap_instructions(profile, lang),
+        tools=[],
+        default_options=model_options(RecapOutput, client.model),
     )
