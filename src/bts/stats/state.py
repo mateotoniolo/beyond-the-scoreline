@@ -54,6 +54,9 @@ class StatsSnapshot(BaseModel):
     t: float
     clock: str
     score: tuple[int, int]
+    home_id: str
+    away_id: str
+    team_names: dict[str, str]
     teams: dict[str, TeamStats]
     players: dict[str, PlayerStats]
     momentum: float
@@ -283,6 +286,12 @@ class MatchState:
             t=self._t,
             clock=clock_str(self._t),
             score=self.score,
+            home_id=self.home_id,
+            away_id=self.away_id,
+            team_names={
+                self.home_id: self.meta.home.short_name,
+                self.away_id: self.meta.away.short_name,
+            },
             teams={tid: self.team(tid) for tid in (self.home_id, self.away_id)},
             players={pid: ps.model_copy() for pid, ps in self._players.items()},
             momentum=round(self._momentum, 4),
