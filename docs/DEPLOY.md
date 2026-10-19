@@ -44,7 +44,7 @@ az monitor app-insights component show --app bts-insights --resource-group bts-r
   --query connectionString -o tsv
 ```
 
-Put the value into `.env` as `APPLICATIONINSIGHTS_CONNECTION_STRING`; `infra/deploy.sh` stores it as the `appinsights-connection` secret. Without it the app logs `telemetry: off`. Query the spans with:
+Put the value into `.env` as `APPLICATIONINSIGHTS_CONNECTION_STRING`; `infra/deploy.sh` stores it as the `appinsights-cs` secret. Without it the app logs `telemetry: off`. Query the spans with:
 
 ```bash
 az monitor app-insights query --app bts-insights --resource-group bts-rg \

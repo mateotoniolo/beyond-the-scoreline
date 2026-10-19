@@ -69,8 +69,8 @@ if [[ -n "${BTS_COSMOS_KEY:-}" ]]; then
   SECRET_ENVS+=("BTS_COSMOS_KEY=secretref:cosmos-key")
 fi
 if [[ -n "${APPLICATIONINSIGHTS_CONNECTION_STRING:-}" ]]; then
-  SECRETS+=("appinsights-connection=${APPLICATIONINSIGHTS_CONNECTION_STRING}")
-  SECRET_ENVS+=("APPLICATIONINSIGHTS_CONNECTION_STRING=secretref:appinsights-connection")
+  SECRETS+=("appinsights-cs=${APPLICATIONINSIGHTS_CONNECTION_STRING}")
+  SECRET_ENVS+=("APPLICATIONINSIGHTS_CONNECTION_STRING=secretref:appinsights-cs")
 fi
 if (( ${#SECRETS[@]} )); then
   az containerapp secret set --name "$APP" --resource-group "$RG" --output none --secrets "${SECRETS[@]}"

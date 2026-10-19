@@ -2,13 +2,13 @@
 
 Synthetic match intelligence engine for the Microsoft + Premier League **Inside the Game: Developer Hackathon**. Category: Best Use of Microsoft Foundry.
 
-A seeded generator plays a football-realistic match event by event. A deterministic layer turns events into statistics, momentum and key moments. A Microsoft Foundry model explains why each moment matters, a verifier checks every claim against the numbers, and the result is rendered as timed overlay cues and a live web UI, personalized for analysts or fans in English or Spanish.
+A seeded generator plays a football-realistic match event by event. A deterministic layer turns events into statistics, momentum and key moments. A crew of Microsoft Agent Framework agents on a Microsoft Foundry model (a tactical analyst, a narrator and a fact checker) explains why each moment matters, a producer re-checks every claim against the numbers, and the result is rendered as timed overlay cues and a live web UI, personalized for analysts or fans in English or Spanish.
 
 All clubs, players and venues are fictional. No real league data is bundled, derived or redistributed.
 
 ## Live demo
 
-<https://bts.ashygrass-da897bf3.eastus2.azurecontainerapps.io> (Azure Container Apps, eastus2). Pick seed 11 at 30×, press play; insights labelled `Foundry` with a `verified` badge come from `gpt-5-mini` through Microsoft Foundry.
+<https://bts.ashygrass-da897bf3.eastus2.azurecontainerapps.io> (Azure Container Apps, eastus2). Pick seed 11 at 30×, press play; insights labelled `Agent crew` with a `verified` badge come from `gpt-5-mini` through Microsoft Foundry, and the timeline under each one shows what every agent did.
 
 ## The five stages, mapped to code
 
@@ -16,7 +16,7 @@ All clubs, players and venues are fictional. No real league data is bundled, der
 |---|---|---|
 | 1 Ingest | Seeded simulator emits passes, carries, shots, duels, pressures, fouls, cards and substitutions with pitch coordinates and xG | `src/bts/sim/` |
 | 2 Interpret | Incremental possession, pass accuracy, shots, xG, pressures, final-third entries, observable momentum; rule-based key moments | `src/bts/stats/` |
-| 3 Explain | Microsoft Foundry explainer with structured JSON, deterministic fact check, Foundry verifier, one retry, template fallback | `src/bts/insights/` |
+| 3 Explain | Agent Framework crew (analyst with tools, narrator, fact checker, producer) on Foundry structured JSON, one retry, simple pipeline and template fallbacks | `src/bts/insights/crew/`, `src/bts/insights/` |
 | 4 Render | Lower third, side panel and ticker cues with `t_start` and `duration_s`; SSE stream; REST endpoints | `src/bts/insights/cues.py`, `src/bts/api/` |
 | 5 Personalize | Analyst or fan, English or Spanish, follow-your-club mode, profiles in Azure Cosmos DB | `web/`, `src/bts/store/` |
 
@@ -24,7 +24,9 @@ Architecture diagram and data flow: `docs/ARCHITECTURE.md`. Judging criteria to 
 
 ## Microsoft and Azure services
 
-- **Microsoft Foundry**: `gpt-5-mini` through the Responses API with JSON-schema structured outputs, for the explainer, the verifier and the recap (`docs/FOUNDRY.md`).
+- **Microsoft Foundry**: `gpt-5-mini` through the Responses API with JSON-schema structured outputs, for every agent turn and the recap (`docs/FOUNDRY.md`).
+- **Microsoft Agent Framework**: the four-role crew, its tools over the shared match context and the sequential workflow (`docs/AGENTS_CREW.md`).
+- **Application Insights**: OpenTelemetry traces of every agent, model call and tool call, also visible in Foundry tracing (`docs/DEPLOY.md`).
 - **Azure Container Apps**: the single container, external ingress, scale-to-zero outside the judging window (`docs/DEPLOY.md`).
 - **Azure Cosmos DB**: user profiles, free tier.
 - **GitHub Copilot and Azure MCP Server**: `AGENTS.md`, `.github/copilot-instructions.md`, `.vscode/mcp.json` (`docs/COPILOT_USAGE.md`).
@@ -45,7 +47,7 @@ pnpm -C web install
 pnpm -C web dev
 ```
 
-Open <http://localhost:5173>, pick a seed (11 is a good first match), press play. Without a Foundry endpoint every insight comes from the bilingual templates; copy `.env.example` to `.env` to use Microsoft Foundry (see `docs/FOUNDRY.md`).
+Open <http://localhost:5173>, pick a seed (11 is a good first match), press play. Without a Foundry endpoint every insight comes from the bilingual templates; copy `.env.example` to `.env` to use Microsoft Foundry (see `docs/FOUNDRY.md`). `BTS_AGENT_MODE=simple` swaps the crew for the two-prompt pipeline.
 
 One container with everything, as deployed:
 

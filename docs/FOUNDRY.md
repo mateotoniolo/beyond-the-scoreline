@@ -1,6 +1,6 @@
 # Microsoft Foundry setup
 
-Beyond the Scoreline calls one Foundry model deployment for the Explainer, the Verifier and the Recap, always with structured JSON output. Everything goes through `bts.insights.llm.LLMClient`; the Foundry implementation is `bts.insights.foundry.FoundryClient`.
+Beyond the Scoreline calls one Foundry model deployment for every agent turn of the crew (analyst, narrator, fact checker), for the recap, and for the simple pipeline's explainer and verifier, always with structured JSON output. The crew reaches it through Microsoft Agent Framework's `OpenAIChatClient(model, api_key, azure_endpoint)` (`bts.insights.crew.agents.make_chat_client`); the simple pipeline through `bts.insights.llm.LLMClient`, implemented by `bts.insights.foundry.FoundryClient`.
 
 ## SDK surface (verified 2026-10-19)
 
@@ -12,7 +12,7 @@ Source: Microsoft Learn, *How to use structured outputs with Azure OpenAI in Mic
 - Timeouts: `client.with_options(timeout=20.0)`; on timeout the SDK raises `APITimeoutError` (subclass of `APIError`). We wrap every `APIError` in `LLMError`.
 - `gpt-5-mini` (version 2025-08-07) is in the supported-models list for structured outputs.
 
-We use the Responses API with `instructions=` for the system prompt and `reasoning={"effort": "low"}` on gpt-5 models to keep latency low.
+We use the Responses API with `instructions=` for the system prompt, `max_output_tokens=2500` (reasoning tokens count against it) and `reasoning={"effort": "minimal"}` on gpt-5 models to keep latency low. The Agent Framework client gets the same values through `OpenAIChatOptions` (`max_tokens`, `reasoning`, `response_format`).
 
 ## Provisioning (manual, once)
 
@@ -29,4 +29,4 @@ The round-trip test is skipped unless `BTS_FOUNDRY_ENDPOINT` is set.
 
 ## Cost notes
 
-Each key moment costs two short calls (explain + verify) per profile and language variant actually requested, plus one recap per variant. A match produces 13 to 22 moments, so a full match in one variant is under 50 calls of ~2k input tokens with `gpt-5-mini`.
+Each key moment costs one analyst turn (shared by all variants) plus a narrator and a fact-checker turn per profile and language variant actually requested, with tool calls as extra turns, plus one recap per variant. A match produces 13 to 22 moments, so a full match in one variant is under 50 calls of ~2k input tokens with `gpt-5-mini`.
