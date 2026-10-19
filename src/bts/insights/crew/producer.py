@@ -120,18 +120,27 @@ def _end(cue: Cue, factor: float) -> float:
 
 
 def plan_cues(
-    insight: Insight, moment: Moment, existing: list[Cue], speed: float = 1.0
+    insight: Insight,
+    moment: Moment,
+    existing: list[Cue],
+    speed: float = 1.0,
+    at: float | None = None,
 ) -> list[Cue]:
     """Cues for ``insight`` that never overlap ``existing`` cues on the same layer.
 
-    Waiting more than ``MAX_WAIT_S`` real seconds, or a severe moment (a goal, a red card)
-    on the lower third, preempts instead: the running cue comes back with its duration cut,
-    under the same ``cue_id``, so clients replace it.
+    Live cues are anchored at ``at`` (the match clock when the insight is ready), never
+    earlier than the moment, because that is when they go on air; a replay keeps the
+    moment's time. Waiting more than ``MAX_WAIT_S`` real seconds, or a severe moment (a goal,
+    a red card) on the lower third, preempts instead: the running cue comes back with its
+    duration cut, under the same ``cue_id``, so clients replace it.
     """
     factor = max(1.0, speed)
+    anchor = moment.t if at is None else max(moment.t, at)
     planned: list[Cue] = []
     replaced: list[Cue] = []
     for cue in from_insight(insight, moment):
+        if anchor != cue.t_start:
+            cue = cue.model_copy(update={"t_start": anchor})
         same_layer = [c for c in existing if c.layer == cue.layer and c.duration_s > 0]
         queue_end = max((_end(c, factor) for c in same_layer), default=cue.t_start)
         wait_s = (queue_end - cue.t_start) / factor

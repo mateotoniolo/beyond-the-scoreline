@@ -108,6 +108,7 @@ async def test_double_rejection_ships_template_with_trace(moment, snap, recent):
     insight = await crew.for_moment(moment, snap, recent, "fan", "es")
     assert (insight.source, insight.verified) == ("template", False)
     assert [s.agent for s in insight.trace] == [ANALYST, *([NARRATOR, FACT_CHECKER, PRODUCER] * 2)]
+    assert [s.ok for s in insight.trace] == [True, *([False, True, False] * 2)]
     _, retry_conversation = script.workflow_calls[1]
     assert retry_conversation[-1].role == "user" and "xg is wrong" in retry_conversation[-1].text
     assert any(m.author_name == NARRATOR for m in retry_conversation)

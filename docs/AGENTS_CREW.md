@@ -12,9 +12,10 @@ Four roles turn a key moment into a verified, audience-specific insight. Three a
 | 4 | `producer` | `Executor` (no model) | the whole conversation | the decision: re-runs `check_facts` on the draft, keeps only real contradictions from the checker, yields `ProducerOutput`; plans the overlay cues |
 
 - The analysis runs once per moment through `Agent.run` and is shared by every profile and language variant of that moment.
+- Live cues are anchored at the match clock when the insight is ready (that is when they go on air), so the producer's sequencing matches what the screen shows; a rejected pass shows its narrator and producer steps struck through in the timeline.
 - Roles 2 to 4 run as `SequentialBuilder(participants=[narrator, fact_checker, producer])`; the conversation (`list[Message]`) flows down the chain, so the checker sees the analyst's notes and the narrator's draft, and the producer sees everything.
 - Rejection: the producer's verdict is false when the deterministic numeric check fails or the checker lists a contradiction. The crew runs the workflow again with the conversation plus a user message listing the issues; the narrator fixes its draft with the full context. A second rejection ships the bilingual template, `verified: false`, with the trace of every agent that ran.
-- Bounds: 20 s per agent run, 45 s per workflow. A timeout, an SDK error or a missing structured value raises `CrewError`; `InsightService` then runs the simple two-prompt pipeline and, failing that, the template. The match stream never waits.
+- Bounds: every model request (each tool round included) has a 20 s timeout with one retry at the client, the analyst and recap runs 20 s, each workflow 45 s. A timeout, an SDK error or a missing structured value raises `CrewError`; `InsightService` then runs the simple two-prompt pipeline and, failing that, the template. The match stream never waits.
 - Tools return compact JSON keyed by team and player names; ids never reach the model. Unknown names return an `unknown_team` or `unknown_player` payload instead of raising inside the agent loop.
 
 ## What a judge can see

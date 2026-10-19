@@ -19,6 +19,8 @@ NARRATOR = "narrator"
 FACT_CHECKER = "fact_checker"
 PRODUCER = "producer"
 CHECKER_TOOLS = frozenset({"get_team_stats", "get_player_stats", "get_momentum", "check_numbers"})
+# Every model request (including each tool round) is bounded; the SDK default is 600 s.
+REQUEST_TIMEOUT_S = 20.0
 
 
 class Analysis(BaseModel):
@@ -37,11 +39,13 @@ def resource_endpoint(foundry_endpoint: str) -> str:
 def make_chat_client(settings: Settings) -> OpenAIChatClient:
     if not settings.foundry_endpoint or not settings.foundry_api_key:
         raise ValueError("BTS_FOUNDRY_ENDPOINT and BTS_FOUNDRY_API_KEY are required for the crew")
-    return OpenAIChatClient(
+    client = OpenAIChatClient(
         model=settings.foundry_model,
         api_key=settings.foundry_api_key,
         azure_endpoint=resource_endpoint(settings.foundry_endpoint),
     )
+    client.client = client.client.with_options(timeout=REQUEST_TIMEOUT_S, max_retries=1)
+    return client
 
 
 def model_options(response_format: type[BaseModel] | None, model: str) -> OpenAIChatOptions:
@@ -50,7 +54,7 @@ def model_options(response_format: type[BaseModel] | None, model: str) -> OpenAI
     if response_format is not None:
         opts["response_format"] = response_format
     if model.startswith(("gpt-5", "o")):
-        opts["reasoning"] = {"effort": REASONING_EFFORT}  # type: ignore[typeddict-item]
+        opts["reasoning"] = {"effort": REASONING_EFFORT}
     return opts
 
 

@@ -1,5 +1,6 @@
 from bts.config import Settings
 from bts.insights.crew.agents import (
+    REQUEST_TIMEOUT_S,
     Analysis,
     make_analyst,
     make_chat_client,
@@ -27,6 +28,7 @@ def test_chat_client_targets_the_foundry_resource():
     client = make_chat_client(_settings())
     assert client.model == "gpt-5-mini"
     assert str(client.client.base_url) == "https://x.openai.azure.com/openai/v1/"
+    assert client.client.timeout == REQUEST_TIMEOUT_S and client.client.max_retries == 1
 
 
 def test_agents_have_roles_and_tools(moment, snap, recent):

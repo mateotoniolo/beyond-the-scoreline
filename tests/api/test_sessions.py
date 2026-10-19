@@ -78,3 +78,14 @@ async def test_session_passes_the_crew_to_its_insight_service():
     session = manager.create(CreateMatch(seed=1, speed=6000))
     assert isinstance(session.insights.crew, _Crew)
     session.close()
+
+
+async def test_live_cues_are_anchored_at_the_match_clock():
+    manager = SessionManager(FakeLLM([]))
+    session = manager.create(CreateMatch(seed=11, speed=6000))
+    await _finish(session)
+    moment = session.moments[0]
+    insight = await session.insight_for(moment, "fan", "es")
+    live = session._plan_cues(insight, moment, ("fan", "es"), at=session.state.clock)
+    assert live and all(c.t_start == session.state.clock for c in live)
+    assert session.state.clock > moment.t

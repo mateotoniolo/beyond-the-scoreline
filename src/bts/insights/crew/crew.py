@@ -101,6 +101,9 @@ class AgentCrew:
                 insight.verified = not any(i.startswith("verifier_unavailable") for i in out.issues)
                 insight.trace = trace
                 return insight
+            for step in steps:  # the draft and the decision of this pass were rejected
+                if step.agent in (NARRATOR, PRODUCER):
+                    step.ok = False
             log.info(
                 "crew rejected draft (%s/%s) for %s: %s",
                 attempt + 1,

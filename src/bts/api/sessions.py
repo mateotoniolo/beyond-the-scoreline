@@ -119,18 +119,24 @@ class MatchSession:
     async def _produce_insight(self, moment: Moment, profile: Profile, lang: Lang) -> None:
         insight = await self.insight_for(moment, profile, lang)
         self._publish("insight", insight, only=(profile, lang))
-        self._publish(
-            "cues", self._plan_cues(insight, moment, (profile, lang)), only=(profile, lang)
-        )
+        cues = self._plan_cues(insight, moment, (profile, lang), at=self.state.clock)
+        self._publish("cues", cues, only=(profile, lang))
 
     def _plan_cues(
-        self, insight: Insight, moment: Moment, variant: tuple[Profile, Lang]
+        self,
+        insight: Insight,
+        moment: Moment,
+        variant: tuple[Profile, Lang],
+        at: float | None = None,
     ) -> list[Cue]:
-        """Plan the moment's cues against this variant's history; cut cues replace by id."""
+        """Plan the moment's cues against this variant's history; cut cues replace by id.
+
+        Live cues are anchored at the current clock (``at``); replays keep the moment's time.
+        """
         history = self._cues.setdefault(variant, [])
         if any(c.moment_id == moment.moment_id for c in history):
             return [c for c in history if c.moment_id == moment.moment_id]
-        planned = plan_cues(insight, moment, history, self.speed)
+        planned = plan_cues(insight, moment, history, self.speed, at=at)
         index = {c.cue_id: i for i, c in enumerate(history)}
         for cue in planned:
             if cue.cue_id in index:

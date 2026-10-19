@@ -77,3 +77,29 @@ def test_insight_trace_is_optional_and_typed(detected11):
     step = AgentStep(agent="narrator", ms=1200, tool_calls=0, ok=True)
     with_trace = Insight(**{**insight.model_dump(), "trace": [step]})
     assert with_trace.model_dump()["trace"][0]["agent"] == "narrator"
+
+
+def test_live_cues_anchor_at_the_planning_clock(detected11):
+    snap, goal, later = _two_close_moments(detected11)
+    first = plan_cues(
+        render_insight(goal, snap, "fan", "en"), goal, [], speed=30.0, at=goal.t + 100
+    )
+    assert all(c.t_start == goal.t + 100 for c in first)
+    second = plan_cues(
+        render_insight(later, snap, "fan", "en"), later, first, speed=30.0, at=goal.t + 200
+    )
+    # The first lower third runs 8 real s (240 match s at 30x) from its anchor: 140 s are left,
+    # under five real seconds, so the second one waits for it.
+    assert _layer(second, "lower_third")[0].t_start == goal.t + 100 + LOWER_THIRD_S * 30.0
+
+
+def test_late_insight_for_an_earlier_moment_never_zeroes_a_later_cue(detected11):
+    snap, goal, later = _two_close_moments(detected11)
+    first = plan_cues(
+        render_insight(later, snap, "analyst", "en"), later, [], speed=1.0, at=goal.t + 50
+    )
+    second = plan_cues(
+        render_insight(goal, snap, "analyst", "en"), goal, first, speed=1.0, at=goal.t + 60
+    )
+    assert all(c.duration_s > 0 for c in second)
+    assert _layer(second, "lower_third")[0].t_start == goal.t + 60

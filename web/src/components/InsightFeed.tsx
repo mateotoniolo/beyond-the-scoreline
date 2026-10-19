@@ -38,8 +38,8 @@ export function InsightFeed({ insights, moments, meta, lang, favorite }: Props) 
               <p>{i.why_it_matters}</p>
               {i.evidence.length ? (
                 <ul className="chips">
-                  {i.evidence.map((e) => (
-                    <li key={e.stat}>
+                  {i.evidence.map((e, idx) => (
+                    <li key={`${e.stat}-${idx}`}>
                       <span>{e.stat.replace("_", " ")}</span> {e.value}
                     </li>
                   ))}
@@ -50,7 +50,7 @@ export function InsightFeed({ insights, moments, meta, lang, favorite }: Props) 
                   {formatTrace(i.trace, lang).map((label, idx) => (
                     <li
                       key={`${i.trace[idx].agent}-${idx}`}
-                      className={`trace__step trace__step--${i.trace[idx].agent}`}
+                      className={`trace__step trace__step--${i.trace[idx].agent}${i.trace[idx].ok ? "" : " trace__step--rejected"}`}
                       style={{ flexGrow: Math.max(i.trace[idx].ms, 200) }}
                       title={label}
                     >
