@@ -17,7 +17,7 @@ class SimConfig:
     pass_attr_effect: float = 0.12
     pass_difficulty_effect: float = 0.18
 
-    shot_rate_final_third: float = 0.042
+    shot_rate_final_third: float = 0.038
     long_shot_rate: float = 0.02
     pressure_rate: float = 0.06
     foul_rate: float = 0.015
@@ -32,9 +32,9 @@ class SimConfig:
 
     xg_by_zone: dict[str, float] = field(
         default_factory=lambda: {
-            "box_central": 0.18,
-            "box_wide": 0.07,
-            "edge": 0.045,
-            "long": 0.02,
+            "box_central": 0.14,
+            "box_wide": 0.055,
+            "edge": 0.035,
+            "long": 0.015,
         }
     )

@@ -186,8 +186,7 @@ class MatchSimulator:
             carrier = self._pick_kickoff_player(possession_team)
             self.t += 2.0
             while self.t < period_end_t:
-                for ev in self._subs_if_due(period_end_t):
-                    yield ev
+                yield from self._subs_if_due(period_end_t)
                 result = yield from self._possession(possession_team, carrier, ball, period_end_t)
                 possession_team, carrier, ball = result
                 self.momentum = _clip(
