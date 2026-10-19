@@ -2,6 +2,7 @@ import type {
   AskRequest,
   AskResult,
   Cue,
+  Features,
   Insight,
   Lang,
   MatchInfo,
@@ -24,6 +25,8 @@ async function json<T>(input: string, init?: RequestInit): Promise<T> {
 const variant = (profile: Profile, lang: Lang) => `profile=${profile}&lang=${lang}`;
 
 export const getTeams = () => json<TeamSummary[]>("/api/teams");
+
+export const getFeatures = () => json<Features>("/api/features");
 
 export const createMatch = (body: { seed: number; home: string; away: string; speed: number }) =>
   json<MatchInfo>("/api/matches", {

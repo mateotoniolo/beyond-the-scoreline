@@ -106,3 +106,35 @@ def test_evidence_served_by_an_insight_is_accepted_for_its_stat(live):
     assert check_citations(old_board, snap, live.moments, live.meta, served) == []
     other_stat = [Evidence(stat="passes", value=f"{away} 9.99")]
     assert check_citations(other_stat, snap, live.moments, live.meta, served)
+
+
+def test_qualified_values_never_fall_through_to_the_other_side(live):
+    snap = live.snapshot()
+    home, away = _teams(snap)
+    top = max(snap.players.values(), key=lambda p: p.key_passes)
+    assert top.key_passes >= 1
+    team_cited = [Evidence(stat="key_passes", value=f"{home} {top.key_passes}")]
+    assert check_citations(team_cited, snap, live.moments, live.meta)  # teams have no key passes
+    poss = snap.teams[snap.home_id].possession_pct
+    player_cited = [Evidence(stat="possession_pct", value=f"{top.name} {poss:.2f}")]
+    assert check_citations(player_cited, snap, live.moments, live.meta)  # players have none
+
+
+def test_team_qualified_values_accept_that_team_moment_facts(live):
+    snap = live.snapshot()
+    goal = next(m for m in live.moments if m.type == "goal")
+    team = snap.team_names[goal.team_id]
+    ev = [Evidence(stat="shot_xg", value=f"{team} {float(goal.facts['xg']):.3f}")]
+    assert check_citations(ev, snap, live.moments, live.meta) == []
+
+
+def test_served_evidence_keeps_its_qualifier(live):
+    snap = live.snapshot()
+    home, away = _teams(snap)
+    served = [Evidence(stat="xg", value=f"{away} 9.99")]
+    leaked = [Evidence(stat="xg", value=f"{home} 9.99")]
+    assert check_citations(leaked, snap, live.moments, live.meta, served)
+    same = [Evidence(stat="xg", value=f"{away} 9.99")]
+    assert check_citations(same, snap, live.moments, live.meta, served) == []
+    bare = [Evidence(stat="xg", value="9.99")]
+    assert check_citations(bare, snap, live.moments, live.meta, served) == []

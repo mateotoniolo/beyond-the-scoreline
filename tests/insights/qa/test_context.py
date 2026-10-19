@@ -140,15 +140,14 @@ def test_match_card_is_compact_and_named(live):
     assert all("team_id" not in m and "event_ids" not in m for m in card["moments"])
 
 
-def test_context_pins_a_snapshot_per_question_and_refreshes(live):
+def test_context_pins_the_board_when_the_question_arrives(live):
     ctx = QAContext(live, "analyst", "en")
     before = json.loads(ctx.score_and_clock())
     live.advance(200)
     assert json.loads(ctx.score_and_clock())["clock"] == before["clock"]  # one question, one board
     assert ctx.snap.clock == before["clock"]
-    ctx.refresh()
-    after = json.loads(ctx.score_and_clock())
-    assert after["clock"] != before["clock"] and ctx.snap.clock == after["clock"]
+    later = QAContext(live, "analyst", "en")  # the next question sees the match as it is now
+    assert json.loads(later.score_and_clock())["clock"] != before["clock"]
     assert len(json.loads(ctx.moments())) == len(live.moments)
 
 

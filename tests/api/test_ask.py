@@ -77,3 +77,9 @@ async def test_session_satisfies_live_match():
         assert live.status in ("running", "finished") and live.events is session.events
     finally:
         session.close()
+
+
+async def test_features_tell_the_ui_whether_the_desk_is_on(client, app):
+    assert (await client.get("/api/features")).json() == {"ask_the_match": False}
+    app.state.qa = _StubQA()
+    assert (await client.get("/api/features")).json() == {"ask_the_match": True}

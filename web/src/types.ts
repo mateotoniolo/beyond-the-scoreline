@@ -183,6 +183,11 @@ export interface Cue {
   shown_from?: number;
 }
 
+/** Optional features this deployment serves (`GET /api/features`). */
+export interface Features {
+  ask_the_match: boolean;
+}
+
 export interface AskRequest {
   question: string;
   profile: Profile;

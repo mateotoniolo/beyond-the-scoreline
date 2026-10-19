@@ -112,8 +112,8 @@ button, input, select { font: inherit; color: inherit; }
   min-height: 0;
 }
 .main__monitor { display: grid; grid-template-rows: minmax(0, 1fr) minmax(120px, 0.55fr); gap: 10px; min-height: 0; }
-/* Stats, insights, question desk: the desk yields its log before the feed drops under its heading. */
-.main__rail { display: grid; grid-template-rows: auto minmax(60px, 1fr) minmax(0, auto); gap: 10px; min-height: 0; }
+/* Stats, insights and, when the feature is on, the question desk as an implicit third row that yields its log before the feed drops under its heading. */
+.main__rail { display: grid; grid-template-rows: auto minmax(60px, 1fr); grid-auto-rows: minmax(0, auto); gap: 10px; min-height: 0; }
 
 .main--empty { grid-template-columns: 1fr; align-content: center; }
 .intro { max-width: 62ch; margin: 0 auto; padding: 24px 0; }

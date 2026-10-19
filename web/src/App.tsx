@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createMatch, getProfile, getRecap, getTeams, putProfile } from "./api";
+import { createMatch, getFeatures, getProfile, getRecap, getTeams, putProfile } from "./api";
 import { AskPanel } from "./components/AskPanel";
 import { Controls, type Setup } from "./components/Controls";
 import { EventFeed } from "./components/EventFeed";
@@ -11,7 +11,7 @@ import { Scoreboard } from "./components/Scoreboard";
 import { StatsPanel } from "./components/StatsPanel";
 import { useMatchStream } from "./hooks/useMatchStream";
 import { activeCues } from "./lib/cues";
-import type { Lang, MatchInfo, Profile, Recap, TeamSummary } from "./types";
+import type { Features, Lang, MatchInfo, Profile, Recap, TeamSummary } from "./types";
 
 const USER_KEY = "bts.user_id";
 
@@ -29,6 +29,7 @@ function userId(): string {
 
 export default function App() {
   const [teams, setTeams] = useState<TeamSummary[]>([]);
+  const [features, setFeatures] = useState<Features>({ ask_the_match: false });
   const [uid] = useState(userId);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [setup, setSetup] = useState<Setup>({ seed: 11, home: "t1", away: "t2", speed: 30 });
@@ -42,6 +43,7 @@ export default function App() {
 
   useEffect(() => {
     getTeams().then(setTeams).catch((e: Error) => setError(e.message));
+    getFeatures().then(setFeatures).catch(() => undefined); // an old API without it: the desk stays hidden
   }, []);
 
   // Profile, language and followed club persist per visitor (Azure Cosmos DB when configured).
@@ -117,7 +119,9 @@ export default function App() {
           <aside className="main__rail">
             <StatsPanel stats={stream.stats} meta={info.meta} lang={lang} />
             <InsightFeed insights={stream.insights} moments={stream.moments} meta={info.meta} lang={lang} favorite={favorite} />
-            <AskPanel key={info.match_id} matchId={info.match_id} profile={profile} lang={lang} />
+            {features.ask_the_match ? (
+              <AskPanel key={info.match_id} matchId={info.match_id} profile={profile} lang={lang} />
+            ) : null}
           </aside>
         </main>
       ) : (

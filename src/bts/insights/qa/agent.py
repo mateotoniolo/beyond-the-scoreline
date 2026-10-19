@@ -90,6 +90,9 @@ class QAAgent:
         t0 = perf_counter()
         try:
             answer, step = await asyncio.wait_for(self._run(agent, messages), self.timeout_s)
+            prose = clean_prose(answer.answer)
+            if not prose:
+                raise QAError("empty answer")
         except Exception as exc:  # noqa: BLE001 - every failure degrades to the fallback
             ms = max(1, int((perf_counter() - t0) * 1000))
             log.warning("qa failed for %s after %sms: %s: %s", key, ms, type(exc).__name__, exc)
@@ -105,7 +108,6 @@ class QAAgent:
         verified = answer.grounded and bool(answer.citations) and not issues
         if issues:
             log.info("qa citations rejected for %s: %s", key, issues)
-        prose = clean_prose(answer.answer) or FALLBACK[lang]
         self._remember(key, question, prose)
         log.info(
             "qa answered %s in %sms (tools=%s verified=%s grounded=%s)",

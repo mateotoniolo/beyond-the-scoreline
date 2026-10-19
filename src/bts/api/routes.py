@@ -46,6 +46,12 @@ async def teams() -> list[TeamSummary]:
     ]
 
 
+@router.get("/features")
+async def features(request: Request) -> dict[str, bool]:
+    """Which optional features this deployment serves, so the UI shows only live ones."""
+    return {"ask_the_match": request.app.state.qa is not None}
+
+
 @router.post("/matches", response_model=MatchInfo, status_code=status.HTTP_201_CREATED)
 async def create_match(request: Request, body: CreateMatch) -> MatchInfo:
     try:

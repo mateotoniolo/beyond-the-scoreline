@@ -87,7 +87,7 @@ class QAContext:
 
     The statistics are pinned when the context is created (one question, one board) so the
     tools, the match card and the citation check all see the same numbers while the match
-    moves on; ``refresh`` re-pins them. Events and moments are read live (they only append).
+    moves on. Events and moments are read live (they only append).
     """
 
     def __init__(self, match: LiveMatch, profile: Profile, lang: Lang) -> None:
@@ -101,9 +101,6 @@ class QAContext:
         self._roster: dict[str, Player] = {
             p.name.lower(): p for t in (match.meta.home, match.meta.away) for p in t.players
         }
-
-    def refresh(self) -> None:
-        self.snap = self.match.snapshot()
 
     # ------------------------------------------------------------------ readers
     def match_card(self) -> dict[str, Any]:

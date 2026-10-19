@@ -216,3 +216,18 @@ async def test_citation_braces_are_stripped_from_the_prose(live):
     out = await qa.ask(live, "¿Y el arquero?", "analyst", "es")
     assert out.answer == "Penton sin pases y Stanworth 8 de 10."
     assert qa.history(live.match_id, out.conversation_id)[1].text == out.answer
+
+
+async def test_empty_answer_is_the_fallback_not_a_verified_blank(live):
+    qa = _qa()
+    blank = QAAnswer(
+        answer="  {passes, Someone 0} ",
+        citations=[Evidence(stat="xg", value="0.5")],
+        confidence=0.5,
+        grounded=True,
+    )
+    _script(qa, blank)
+    out = await qa.ask(live, "?", "analyst", "en")
+    assert out.source == "template" and out.answer == FALLBACK["en"]
+    assert out.verified is False and out.trace[0].ok is False
+    assert qa.history(live.match_id, out.conversation_id) == []
