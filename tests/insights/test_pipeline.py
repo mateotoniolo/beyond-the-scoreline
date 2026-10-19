@@ -76,3 +76,30 @@ async def test_unexpected_error_falls_back_to_template(moment, snap, recent):
         moment, snap, recent, "analyst", "en"
     )
     assert ins.source == "template"
+
+
+def test_moment_payload_expresses_momentum_for_the_named_team(detected11):
+    from bts.insights.prompts import _moment_payload
+
+    snap, moments = detected11
+    shift = next(x for x in moments if x.type == "momentum_shift")
+    data = _moment_payload(shift, snap)
+    sign = 1 if shift.team_id == snap.home_id else -1
+    assert data["team"] == snap.team_names[shift.team_id]
+    assert data["facts"]["momentum_now"] == round(sign * float(shift.facts["momentum_now"]), 3)
+    assert "favours" in data["facts"]["momentum_scale"]
+
+
+async def test_verifier_commentary_without_contradiction_counts_as_ok(moment, snap, recent):
+    xg = f"{snap.teams[moment.team_id].xg:.2f}"
+    llm = FakeLLM(
+        [
+            good(ev=[Evidence(stat="xg", value=xg)]),
+            VerifierOutput(
+                ok=False,
+                issues=["Claim about xg matches the statistics (no issue).", ""],
+            ),
+        ]
+    )
+    ins = await InsightService(llm).for_moment(moment, snap, recent, "analyst", "en")
+    assert ins.source == "llm" and ins.verified is True and len(llm.calls) == 2

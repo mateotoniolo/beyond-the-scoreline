@@ -30,3 +30,33 @@ async def test_foundry_round_trip():
         schema=ExplainerOutput,
     )
     assert isinstance(out, ExplainerOutput)
+
+
+class _Incomplete:
+    status = "incomplete"
+    output_parsed = None
+
+    class incomplete_details:
+        reason = "max_output_tokens"
+
+
+async def test_incomplete_response_raises_llm_error_with_reason(monkeypatch):
+    from bts.insights.foundry import LLMError
+
+    settings = Settings(
+        _env_file=None,
+        foundry_endpoint="https://x.openai.azure.com/openai/v1/",
+        foundry_api_key="k",
+    )
+    client = FoundryClient(settings)
+
+    class _Responses:
+        async def parse(self, **kwargs):
+            return _Incomplete()
+
+    class _Scoped:
+        responses = _Responses()
+
+    monkeypatch.setattr(client._client, "with_options", lambda **kw: _Scoped())
+    with pytest.raises(LLMError, match="max_output_tokens"):
+        await client.complete_json(system="s", user="u", schema=ExplainerOutput)

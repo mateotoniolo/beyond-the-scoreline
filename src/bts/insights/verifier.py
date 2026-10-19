@@ -14,6 +14,14 @@ from bts.stats.state import StatsSnapshot
 
 # A minus sign only counts when it is not the dash of a range such as "1-3".
 NUMBER_RE = re.compile(r"(?<!\d)-?\d+(?:\.\d+)?")
+PAREN_RE = re.compile(r"\([^)]*\)")
+CLOCK_RE = re.compile(r"\b(\d{1,3}):(\d{2})\b")
+# Verifier replies that describe a claim as fine are commentary, not contradictions.
+NON_ISSUE_RE = re.compile(
+    r"no issue|not a contradiction|matches|is supported|is correct|consistent with"
+    r"|no contradiction",
+    re.IGNORECASE,
+)
 
 
 class ExplainerOutput(BaseModel):
@@ -83,7 +91,12 @@ def _candidates_for(key: str, snap: StatsSnapshot, moment: Moment) -> list[float
     if key == "minute":
         return [moment.t / 60, snap.t / 60]
     if key == "momentum":
-        return [snap.momentum, abs(snap.momentum)]
+        values = [snap.momentum, -snap.momentum]
+        for name in ("momentum_before", "momentum_now"):
+            if isinstance(moment.facts.get(name), int | float):
+                value = float(moment.facts[name])
+                values.extend((value, -value))
+        return values
     if key == "shot_xg":
         values.extend(float(v) for k, v in moment.facts.items() if k == "xg")
     if key in moment.facts and isinstance(moment.facts[key], int | float):
@@ -150,7 +163,9 @@ def check_facts(insight: Insight, snap: StatsSnapshot, moment: Moment) -> list[s
         issues.append("analyst copy must cite at least one piece of numeric evidence")
     pool = _strict_pool(snap, moment)
     for ev in insight.evidence:
-        numbers = [float(n) for n in NUMBER_RE.findall(ev.value.replace("%", ""))]
+        cleaned = CLOCK_RE.sub(lambda m: str(int(m[1]) + int(m[2]) / 60), ev.value)
+        cleaned = PAREN_RE.sub("", cleaned).replace("%", "")
+        numbers = [float(n) for n in NUMBER_RE.findall(cleaned)]
         if not numbers:
             continue
         key = _normalize(ev.stat)
@@ -169,10 +184,14 @@ async def verify(
     if issues:
         return VerifierOutput(ok=False, issues=issues)
     try:
-        return await llm.complete_json(
+        result = await llm.complete_json(
             system=verifier_system(),
             user=verifier_user(insight, snap, moment),
             schema=VerifierOutput,
         )
     except LLMError as exc:
         return VerifierOutput(ok=True, issues=[f"verifier_unavailable: {exc}"])
+    if result.ok:
+        return VerifierOutput(ok=True, issues=[])
+    contradictions = [i for i in result.issues if i.strip() and not NON_ISSUE_RE.search(i)]
+    return VerifierOutput(ok=not contradictions, issues=contradictions)

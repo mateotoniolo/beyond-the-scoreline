@@ -44,3 +44,31 @@ def test_moment_facts_and_spaced_names_resolve(moment, snap):
 
 def test_unknown_stat_name_falls_back_to_strict_pool(moment, snap):
     assert check_facts(_insight([Evidence(stat="vibes", value="150")]), snap, moment)
+
+
+def test_momentum_evidence_accepts_shift_facts(detected11):
+    snap, moments = detected11
+    shift = next(x for x in moments if x.type == "momentum_shift")
+    before = float(shift.facts["momentum_before"])
+    now = float(shift.facts["momentum_now"])
+    ev = _insight([Evidence(stat="momentum", value=f"{before:.3f} → {now:.3f}")])
+    assert check_facts(ev, snap, shift) == []
+
+
+def test_parenthetical_notes_in_values_are_ignored(moment, snap):
+    team = snap.teams[moment.team_id]
+    value = f"{team.possession_pct:.2f}% (last 5 min)"
+    ev = _insight([Evidence(stat="possession_pct", value=value)])
+    assert check_facts(ev, snap, moment) == []
+
+
+def test_momentum_evidence_accepts_either_sign(moment, snap):
+    ev = _insight([Evidence(stat="momentum", value=f"{-snap.momentum:.3f}")])
+    assert check_facts(ev, snap, moment) == []
+
+
+def test_clock_evidence_in_mm_ss_matches_the_moment(moment, snap):
+    minutes = int(moment.t // 60)
+    seconds = int(moment.t % 60)
+    ev = _insight([Evidence(stat="clock", value=f"{minutes:02d}:{seconds:02d}")])
+    assert check_facts(ev, snap, moment) == []

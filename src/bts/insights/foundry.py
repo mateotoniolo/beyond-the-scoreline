@@ -20,6 +20,10 @@ from bts.insights.llm import FakeLLM, LLMClient, LLMError
 log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 ENTRA_SCOPE = "https://ai.azure.com/.default"
+# Reasoning tokens are billed inside max_output_tokens on gpt-5 models: an 800-token cap
+# truncated most JSON replies in testing, so the cap is generous and reasoning is minimal.
+MAX_OUTPUT_TOKENS = 2500
+REASONING_EFFORT = "minimal"
 
 
 class FoundryClient:
@@ -41,20 +45,26 @@ class FoundryClient:
     ) -> T:
         kwargs: dict = {}
         if self.model.startswith(("gpt-5", "o")):
-            kwargs["reasoning"] = {"effort": "low"}
+            # Reasoning tokens count against max_output_tokens; keep them minimal for latency.
+            kwargs["reasoning"] = {"effort": REASONING_EFFORT}
         try:
             response = await self._client.with_options(timeout=timeout_s).responses.parse(
                 model=self.model,
                 instructions=system,
                 input=user,
                 text_format=schema,
-                max_output_tokens=800,
+                max_output_tokens=MAX_OUTPUT_TOKENS,
                 **kwargs,
             )
         except APIError as exc:
             raise LLMError(f"{type(exc).__name__}: {exc}") from exc
         except ValidationError as exc:
             raise LLMError(f"response does not match {schema.__name__}: {exc}") from exc
+        status = getattr(response, "status", None)
+        if status == "incomplete":
+            details = getattr(response, "incomplete_details", None)
+            reason = getattr(details, "reason", "unknown")
+            raise LLMError(f"incomplete response for {schema.__name__}: {reason}")
         parsed = response.output_parsed
         if parsed is None:
             raise LLMError(f"empty or refused response for {schema.__name__}")
