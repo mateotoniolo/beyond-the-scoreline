@@ -95,3 +95,14 @@ def test_roster_player_without_events_counts_as_zero(live):
     assert check_citations(zero, snap, live.moments, live.meta) == []
     some = [Evidence(stat="passes", value=f"{bench.name} 3")]
     assert check_citations(some, snap, live.moments, live.meta)
+
+
+def test_evidence_served_by_an_insight_is_accepted_for_its_stat(live):
+    snap = live.snapshot()
+    away = snap.team_names[snap.away_id]
+    old_board = [Evidence(stat="xg", value=f"{away} 9.99")]
+    assert check_citations(old_board, snap, live.moments, live.meta)
+    served = [Evidence(stat="xg", value="9.99")]
+    assert check_citations(old_board, snap, live.moments, live.meta, served) == []
+    other_stat = [Evidence(stat="passes", value=f"{away} 9.99")]
+    assert check_citations(other_stat, snap, live.moments, live.meta, served)

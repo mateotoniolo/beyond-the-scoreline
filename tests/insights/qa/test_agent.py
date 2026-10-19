@@ -99,6 +99,34 @@ async def test_citations_are_checked_against_the_board_the_question_saw(live):
     assert out.verified is True
 
 
+async def test_numbers_served_by_get_insight_verify(live):
+    from bts.insights import templates
+
+    qa = _qa()
+    snap = live.snapshot()
+    away = snap.team_names[snap.away_id]
+    goal = next(m for m in live.moments if m.type == "goal")
+    old_board = templates.render_insight(goal, snap, "analyst", "en").model_copy(
+        update={"evidence": [Evidence(stat="xg", value="9.99")]}
+    )
+    live.insights[(goal.moment_id, "analyst", "en")] = old_board
+    cited = QAAnswer(
+        answer="At the goal their xG stood at 9.99.",
+        citations=[Evidence(stat="xg", value=f"{away} 9.99")],
+        confidence=0.9,
+        grounded=True,
+    )
+
+    async def run(agent, messages):
+        get_insight = next(t for t in agent.default_options["tools"] if t.name == "get_insight")
+        assert "9.99" in get_insight.func(moment_id=goal.moment_id)
+        return cited, AgentStep(agent=agent.name, ms=2000, tool_calls=1)
+
+    qa._run = run
+    out = await qa.ask(live, "What was their xG at the goal?", "analyst", "en")
+    assert out.verified is True
+
+
 async def test_failed_citation_is_unverified_but_kept(live):
     qa = _qa()
     _script(qa, _answer(live, value="999.9"))

@@ -150,3 +150,15 @@ def test_context_pins_a_snapshot_per_question_and_refreshes(live):
     after = json.loads(ctx.score_and_clock())
     assert after["clock"] != before["clock"] and ctx.snap.clock == after["clock"]
     assert len(json.loads(ctx.moments())) == len(live.moments)
+
+
+def test_insight_records_the_evidence_it_served(live):
+    ctx = QAContext(live, "analyst", "en")
+    goal = next(m for m in live.moments if m.type == "goal")
+    assert ctx.served == []
+    ctx.insight(goal.moment_id)  # nothing cached yet
+    assert ctx.served == []
+    insight = templates.render_insight(goal, live.snapshot(), "analyst", "en")
+    live.insights[(goal.moment_id, "analyst", "en")] = insight
+    ctx.insight(goal.moment_id)
+    assert ctx.served == insight.evidence

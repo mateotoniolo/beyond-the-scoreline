@@ -83,18 +83,32 @@ def _moment_candidates(moments: Sequence[Moment], key: str) -> list[float]:
     ]
 
 
+def _key(stat: str) -> str:
+    key = _normalize(stat)
+    return QA_ALIASES.get(key, key)
+
+
+def _served_candidates(served: Sequence[Evidence], key: str) -> list[float]:
+    return [n for ev in served if _key(ev.stat) == key for n in _numbers(ev.value)]
+
+
 def _candidates(
-    key: str, qualifier: tuple[str, str] | None, snap: StatsSnapshot, moments: Sequence[Moment]
+    key: str,
+    qualifier: tuple[str, str] | None,
+    snap: StatsSnapshot,
+    moments: Sequence[Moment],
+    served: Sequence[Evidence],
 ) -> list[float]:
+    extra = _served_candidates(served, key)
     if key == "score":
-        return [float(snap.score[0]), float(snap.score[1])]
+        return [float(snap.score[0]), float(snap.score[1])] + extra
     if key == "momentum":
         values = [snap.momentum, -snap.momentum]
         for m in moments:
             for name in ("momentum_before", "momentum_now"):
                 if isinstance(m.facts.get(name), int | float):
                     values += [float(m.facts[name]), -float(m.facts[name])]
-        return values
+        return values + extra
     if qualifier is not None:
         kind, ident = qualifier
         scoped = (
@@ -103,13 +117,13 @@ def _candidates(
             else _player_candidates(snap, ident, key)
         )
         if scoped:
-            return scoped
+            return scoped + extra
     values: list[float] = []
     for tid in snap.teams:
         values += _team_candidates(snap, tid, key)
     for pid in snap.players:
         values += _player_candidates(snap, pid, key)
-    return values + _moment_candidates(moments, key)
+    return values + _moment_candidates(moments, key) + extra
 
 
 def _strict_pool(snap: StatsSnapshot, moments: Sequence[Moment]) -> list[float]:
@@ -132,10 +146,13 @@ def check_citations(
     snap: StatsSnapshot,
     moments: Sequence[Moment],
     meta: MatchMeta | None = None,
+    served: Sequence[Evidence] = (),
 ) -> list[str]:
     """Return one issue per citation whose numbers the statistics do not support.
 
-    ``meta`` (the match's rosters) lets a value name a player who has no event yet.
+    ``meta`` (the match's rosters) lets a value name a player who has no event yet; ``served``
+    is the evidence of crew insights the agent read, numbers from a moment's board that still
+    count for their statistic.
     """
     issues: list[str] = []
     pool: list[float] | None = None
@@ -144,15 +161,16 @@ def check_citations(
         numbers = _numbers(citation.value)
         if not numbers:
             continue
-        key = _normalize(citation.stat)
-        key = QA_ALIASES.get(key, key)
+        key = _key(citation.stat)
         if key == "minute":
             ok = all(0 <= n <= snap.t / 60 + 1 for n in numbers)
         else:
             qualifier = _qualifier(citation.value, snap, roster)
-            candidates = _candidates(key, qualifier, snap, moments)
+            candidates = _candidates(key, qualifier, snap, moments, served)
             if not candidates:
-                pool = pool if pool is not None else _strict_pool(snap, moments)
+                if pool is None:
+                    pool = _strict_pool(snap, moments)
+                    pool += [n for ev in served for n in _numbers(ev.value)]
                 candidates = pool
             ok = all(any(_close(n, c) for c in candidates) for n in numbers)
         if not ok:

@@ -37,7 +37,8 @@ def qa_instructions(profile: Profile, lang: Lang) -> str:
         "Put every number you mention in citations as {stat, value}: stat is one of "
         f"{STAT_NAMES}, key_passes, minute; value holds the number and the team short name or "
         'player name it belongs to, e.g. "NTH 1.42" or "Player Name 3", and nothing else (no '
-        "stat names, no time windows). confidence is 0 to 1. grounded is true only when every "
+        "stat names, no time windows). The answer text is plain prose: never write citations, "
+        "braces or stat names inside it. confidence is 0 to 1. grounded is true only when every "
         "claim comes from the tools or the match card. Reply with JSON only."
     )
 

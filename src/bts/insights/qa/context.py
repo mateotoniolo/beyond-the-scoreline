@@ -25,7 +25,7 @@ from bts.insights.crew.context import (
     team_stats_payload,
 )
 from bts.insights.prompts import events_summary, moment_payload
-from bts.insights.schemas import Insight, Lang, Profile
+from bts.insights.schemas import Evidence, Insight, Lang, Profile
 from bts.sim.models import Event, MatchMeta, Player
 from bts.stats.moments import Moment
 from bts.stats.state import PlayerStats, StatsSnapshot
@@ -95,6 +95,9 @@ class QAContext:
         self.profile = profile
         self.lang = lang
         self.snap: StatsSnapshot = match.snapshot()
+        # Evidence of the crew insights served through get_insight: numbers from a moment's
+        # board, which the citation check accepts even after the match moved on.
+        self.served: list[Evidence] = []
         self._roster: dict[str, Player] = {
             p.name.lower(): p for t in (match.meta.home, match.meta.away) for p in t.players
         }
@@ -178,6 +181,7 @@ class QAContext:
         for profile, lang in variants:
             found = self.match.cached_insight(moment_id, profile, lang)
             if found is not None:
+                self.served.extend(found.evidence)
                 return dump(found.model_dump(exclude={"insight_id", "trace"}))
         hint = "the crew has not explained this moment yet; answer from the statistics"
         return dump({"no_insight": moment_id, "hint": hint})
