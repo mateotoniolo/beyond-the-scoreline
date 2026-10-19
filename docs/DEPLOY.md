@@ -51,7 +51,7 @@ az monitor app-insights query --app bts-insights --resource-group bts-rg --offse
   --analytics-query "dependencies | where name startswith 'invoke_agent' | project timestamp, name, duration | top 20 by timestamp desc"
 ```
 
-`--offset` widens the CLI's query window (it defaults to the last hour, whatever the KQL says). Ingestion takes a few minutes.
+`--offset` widens the CLI's query window (it defaults to the last hour, whatever the KQL says). Spans from a match at 30× show up within seconds; a 300× burst on the 0.5 vCPU replica saturates the exporter and drops them. The connection string holds several `;`-separated fields: `infra/deploy.sh` reads `.env` line by line for that reason (sourcing it would cut the value at the first `;`).
 
 `BTS_AGENT_MODE=simple` turns the crew off (two prompts instead of four roles) without redeploying anything else.
 

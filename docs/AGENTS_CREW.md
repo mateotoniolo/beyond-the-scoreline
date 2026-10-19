@@ -38,6 +38,8 @@ Seed 11, analyst, English, `gpt-5-mini` with minimal reasoning, 2,500-token cap:
 | Latency (min, max) | 5.8 s, 10.9 s |
 | Single run, isolated (analyst, narrator, checker, producer) | 2.9 s, 2.6 s, 1.0 s, under 1 ms; 6.5 s end to end |
 
+On the deployed Container App (0.5 vCPU, 1 GiB) at 30×: 19 of 19 insights from the crew, all verified and traced, median 6.4 s, max 9.6 s, and every run visible in Application Insights within seconds (`workflow.run`, `invoke_agent`, `chat gpt-5-mini`, the FastAPI spans). At 300× the same replica still produced 19 verified insights (median 6.1 s) but its exporter dropped the spans under the burst of 19 concurrent crews; the in-app trace is unaffected.
+
 The three insights missing from the count arrived after the full-time status (the measuring script stops there). One draft was rejected twice during the run because its evidence value read `SMR last_5_min 69.81` and the checker counted the `5`; the checker now ignores identifiers and the prompts ask for bare values.
 
 Reproduce: start the API with a `.env` that has the Foundry variables, then run `scripts/measure_latency.py 30` (creates a match at 30× and times every insight against its moment).
