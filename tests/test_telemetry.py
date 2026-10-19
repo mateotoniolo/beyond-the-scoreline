@@ -27,3 +27,19 @@ def test_telemetry_configures_when_set(monkeypatch):
     assert calls["connection_string"] == "InstrumentationKey=abc"
     assert calls["instrumented"] is True
     assert calls["resource"].attributes["service.name"] == SERVICE_NAME
+
+
+def test_telemetry_silences_the_exporter_feedback_loop(monkeypatch):
+    import logging
+
+    import agent_framework.observability as observability
+    import azure.monitor.opentelemetry as azure_monitor
+
+    monkeypatch.setattr(telemetry, "_configured", False)
+    monkeypatch.setattr(azure_monitor, "configure_azure_monitor", lambda **kw: None)
+    monkeypatch.setattr(observability, "enable_instrumentation", lambda **kw: None)
+    for name in telemetry.QUIET_LOGGERS:
+        logging.getLogger(name).setLevel(logging.NOTSET)
+    assert configure_telemetry(Settings(_env_file=None, app_insights_connection_string="x"))
+    # Each transmission logs three INFO lines that the handler would export again, forever.
+    assert all(logging.getLogger(n).level == logging.WARNING for n in telemetry.QUIET_LOGGERS)
