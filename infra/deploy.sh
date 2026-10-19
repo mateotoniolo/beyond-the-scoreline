@@ -28,12 +28,23 @@ fi
 # shellcheck disable=SC1090
 set -a; source "$ENV_FILE"; set +a
 
+# The registry's TLS handshake times out now and then; retry the login and the push.
+retry() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    "$@" && return 0
+    echo "attempt $attempt of 5 failed: $1 ${2:-}; retrying in 15 s" >&2
+    sleep 15
+  done
+  return 1
+}
+
 az group create --name "$RG" --location "$LOCATION" --output none
 az acr create --name "$ACR" --resource-group "$RG" --sku Basic --admin-enabled true --output none
-az acr login --name "$ACR"
+retry az acr login --name "$ACR"
 
 echo "building $IMAGE"
-docker buildx build --platform linux/amd64 -t "$IMAGE" --push .
+retry docker buildx build --platform linux/amd64 -t "$IMAGE" --push .
 
 ACR_USER=$(az acr credential show --name "$ACR" --query username -o tsv)
 ACR_PASS=$(az acr credential show --name "$ACR" --query 'passwords[0].value' -o tsv)
@@ -81,4 +92,4 @@ az containerapp update --name "$APP" --resource-group "$RG" --output none \
 
 FQDN=$(az containerapp show --name "$APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)
 echo "deployed: https://$FQDN"
-curl -fsS "https://$FQDN/healthz" && echo
+curl -fsS --max-time 120 "https://$FQDN/healthz" && echo  # a cold start takes about 25 s
