@@ -13,3 +13,5 @@ Palette (stadium at night under floodlights):
 Type: Barlow Condensed for scoreboard, lower third and headings (broadcast numerals, tabular); Barlow for body copy. Sentence case everywhere, no eyebrow labels, no middle dots.
 
 Layout: top bar with scoreboard and controls; program monitor (pitch + overlays) left, stats and insights rail right, event feed under the monitor. Structural lines are chalk hairlines like pitch markings, no card shadows. Left-aligned text; the scoreboard is the only centred element.
+
+Ask the match (bottom of the rail): a question desk, not a chat. One input line with the heading as its label, suggested questions as quiet chips, and the last three exchanges as left-ruled rows (question in mist, answer in chalk, citation chips, a status badge and the agent step). The desk yields its log before the insight feed drops under its heading, so the rail still fits 720 px.

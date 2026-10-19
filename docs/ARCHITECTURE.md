@@ -22,6 +22,9 @@ flowchart LR
   SP["simple pipeline<br/>explainer + verifier"] -. "fallback" .-> CU
   T["templates<br/>bts.insights.templates"] -. "fallback" .-> CU
   UI -. "profiles" .-> C["Azure Cosmos DB<br/>free tier"]
+  UI -- "POST /ask" --> QA["Ask the match: match_qa<br/>Agent with 11 tools over the live session<br/>citation check"]
+  QA -.-> F
+  QA -. "tools read" .-> SSE
 ```
 
 ## Data flow for one match
@@ -46,6 +49,10 @@ flowchart LR
 The analysis runs once per moment and is shared by every profile and language variant. Narration, checking and production run as a `SequentialBuilder` workflow whose conversation flows from role to role, so the fact checker sees the analyst's reasoning and the narrator's draft. A rejected draft goes back to the narrator once with the issues attached; a second rejection ships the template. Every model request has a 20 s timeout at the client (one retry), each workflow 45 s, and any SDK failure raises `CrewError`, which the service turns into the simple pipeline. Each insight carries `trace: [{agent, ms, tool_calls, ok}]`, drawn in the UI as an agent timeline; the same steps are OpenTelemetry spans (`invoke_agent`, `chat`, `execute_tool`) in Application Insights when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set. `BTS_AGENT_MODE=simple` switches the crew off.
 
 Measured locally against `gpt-5-mini` with minimal reasoning: a verified insight in about 6.5 s end to end (analyst 2.9 s, narrator 2.6 s, fact checker 1.0 s, producer under 1 ms); the full-match numbers are in `docs/AGENTS_CREW.md`.
+
+## Ask the match
+
+`bts.insights.qa` is the question desk: one Agent Framework `Agent` (`match_qa`) on the same Foundry chat client, answering a viewer's free-text question about the match on screen from that match's data only. `QAContext` pins the session's statistics when the question arrives and exposes eleven tools over the live session (`get_score_and_clock`, `get_team_stats`, `get_player_stats`, `get_top_players`, `get_lineup`, `get_last_five_minutes`, `get_momentum`, `get_moments`, `get_insight`, `get_recent_events`, `search_events`), sharing the crew's serialisation so names, never ids, reach the model. The agent returns `QAAnswer {answer, citations, confidence, grounded}`; `check_citations` re-checks every cited number against the pinned board (team- and player-qualified values resolve against that team or player, rosters included; numbers read from a crew insight count for their statistic), and the reply is `verified` only when it is grounded, cites at least one number and every citation resolves. One run per question, bounded by 20 s; any failure returns a bilingual fallback with `source: "template"`. The last three exchanges per conversation stay in memory and travel as prior messages. `POST /api/matches/{id}/ask` serves it behind `BTS_QA_ENABLED` (on whenever the crew is on), and `AskPanel` in the right rail shows the answer, its citations, a status badge and the agent step. Measured: median 4.6 s over eight sample questions (`docs/ASK_THE_MATCH.md`).
 
 ## What the badges mean
 

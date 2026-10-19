@@ -2,7 +2,7 @@
 
 Synthetic match intelligence engine for the Microsoft + Premier League **Inside the Game: Developer Hackathon**. Category: Best Use of Microsoft Foundry.
 
-A seeded generator plays a football-realistic match event by event. A deterministic layer turns events into statistics, momentum and key moments. A crew of Microsoft Agent Framework agents on a Microsoft Foundry model (a tactical analyst, a narrator and a fact checker) explains why each moment matters, a producer re-checks every claim against the numbers, and the result is rendered as timed overlay cues and a live web UI, personalized for analysts or fans in English or Spanish.
+A seeded generator plays a football-realistic match event by event. A deterministic layer turns events into statistics, momentum and key moments. A crew of Microsoft Agent Framework agents on a Microsoft Foundry model (a tactical analyst, a narrator and a fact checker) explains why each moment matters, a producer re-checks every claim against the numbers, and the result is rendered as timed overlay cues and a live web UI, personalized for analysts or fans in English or Spanish. A question desk ("Ask the match") answers free-text questions about the match on screen from its data only, with citations checked against the statistics.
 
 All clubs, players and venues are fictional. No real league data is bundled, derived or redistributed.
 
@@ -18,14 +18,14 @@ All clubs, players and venues are fictional. No real league data is bundled, der
 | 2 Interpret | Incremental possession, pass accuracy, shots, xG, pressures, final-third entries, observable momentum; rule-based key moments | `src/bts/stats/` |
 | 3 Explain | Agent Framework crew (analyst with tools, narrator, fact checker, producer) on Foundry structured JSON, one retry, simple pipeline and template fallbacks | `src/bts/insights/crew/`, `src/bts/insights/` |
 | 4 Render | Lower third, side panel and ticker cues with `t_start` and `duration_s`; SSE stream; REST endpoints | `src/bts/insights/cues.py`, `src/bts/api/` |
-| 5 Personalize | Analyst or fan, English or Spanish, follow-your-club mode, profiles in Azure Cosmos DB | `web/`, `src/bts/store/` |
+| 5 Personalize | Analyst or fan, English or Spanish, follow-your-club mode, profiles in Azure Cosmos DB; "Ask the match": a grounded Q&A agent with tools over the live match and a citation check (`docs/ASK_THE_MATCH.md`) | `web/`, `src/bts/store/`, `src/bts/insights/qa/` |
 
 Architecture diagram and data flow: `docs/ARCHITECTURE.md`. Judging criteria to evidence: `docs/RUBRIC_MAP.md`.
 
 ## Microsoft and Azure services
 
 - **Microsoft Foundry**: `gpt-5-mini` through the Responses API with JSON-schema structured outputs, for every agent turn and the recap (`docs/FOUNDRY.md`).
-- **Microsoft Agent Framework**: the four-role crew, its tools over the shared match context and the sequential workflow (`docs/AGENTS_CREW.md`).
+- **Microsoft Agent Framework**: the four-role crew, its tools over the shared match context and the sequential workflow (`docs/AGENTS_CREW.md`); the "Ask the match" agent with eleven tools over the live session (`docs/ASK_THE_MATCH.md`).
 - **Application Insights**: OpenTelemetry traces of every agent, model call and tool call, also visible in Foundry tracing (`docs/DEPLOY.md`).
 - **Azure Container Apps**: the single container, external ingress, scale-to-zero outside the judging window (`docs/DEPLOY.md`).
 - **Azure Cosmos DB**: user profiles, free tier.
@@ -47,7 +47,7 @@ pnpm -C web install
 pnpm -C web dev
 ```
 
-Open <http://localhost:5173>, pick a seed (11 is a good first match), press play. Without a Foundry endpoint every insight comes from the bilingual templates; copy `.env.example` to `.env` to use Microsoft Foundry (see `docs/FOUNDRY.md`). `BTS_AGENT_MODE=simple` swaps the crew for the two-prompt pipeline.
+Open <http://localhost:5173>, pick a seed (11 is a good first match), press play. Without a Foundry endpoint every insight comes from the bilingual templates; copy `.env.example` to `.env` to use Microsoft Foundry (see `docs/FOUNDRY.md`). `BTS_AGENT_MODE=simple` swaps the crew for the two-prompt pipeline; `BTS_QA_ENABLED=false` hides the "Ask the match" desk (on by default whenever the crew is on).
 
 One container with everything, as deployed:
 
@@ -81,7 +81,7 @@ The event format is documented in `docs/DATA.md`; JSON Schemas live in `docs/sch
 
 ## Cost notes
 
-A match produces 13 to 22 key moments; each requested variant costs two short Foundry calls per moment plus one recap. Variants are generated on demand and cached. The deployment runs on the Container Apps consumption grant with one warm replica only during judging.
+A match produces 13 to 22 key moments; each requested variant costs two short Foundry calls per moment plus one recap. Variants are generated on demand and cached. A question to the desk costs one agent run (usually one tool round, about 5 s). The deployment runs on the Container Apps consumption grant with one warm replica only during judging.
 
 ## License
 

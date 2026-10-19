@@ -49,6 +49,10 @@ Reproduce: start the API with a `.env` that has the Foundry variables, then run 
 - Sequential orchestration, not handoff or group chat: the latency budget (a verified insight well under 12 s while the match runs) leaves no room for extra turns. The retry is the only loop.
 - Structured outputs everywhere (`response_format` on each agent's default options) so no role ever parses prose.
 
+## The question desk
+
+The crew explains the moments it chooses; "Ask the match" answers what the viewer asks, with the same chat client, model options and `AgentStep` trace, through tools over the live session and a citation check of its own. See `docs/ASK_THE_MATCH.md`.
+
 ## Switches
 
 - `BTS_AGENT_MODE=crew` (default when `BTS_FOUNDRY_ENDPOINT` and `BTS_FOUNDRY_API_KEY` are set) or `simple`.
