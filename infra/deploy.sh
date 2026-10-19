@@ -5,7 +5,8 @@
 # because free-trial subscriptions cannot run ACR Tasks (the `az containerapp up --source` path).
 #
 # Prerequisites: Docker running, `az login` done, and a .env with BTS_FOUNDRY_ENDPOINT /
-# BTS_FOUNDRY_API_KEY / BTS_FOUNDRY_MODEL (and optionally the BTS_COSMOS_* variables). Usage:
+# BTS_FOUNDRY_API_KEY / BTS_FOUNDRY_MODEL (optionally BTS_COSMOS_*, BTS_AGENT_MODE and
+# APPLICATIONINSIGHTS_CONNECTION_STRING). Usage:
 #   infra/deploy.sh                  # build, push, create or update the app, min replicas 0
 #   MIN_REPLICAS=1 infra/deploy.sh   # keep one replica warm (judging window)
 set -euo pipefail
@@ -51,6 +52,7 @@ az containerapp up \
   --env-vars \
     "BTS_FOUNDRY_ENDPOINT=${BTS_FOUNDRY_ENDPOINT:-}" \
     "BTS_FOUNDRY_MODEL=${BTS_FOUNDRY_MODEL:-gpt-5-mini}" \
+    "BTS_AGENT_MODE=${BTS_AGENT_MODE:-}" \
     "BTS_COSMOS_ENDPOINT=${BTS_COSMOS_ENDPOINT:-}" \
     "BTS_COSMOS_DATABASE=${BTS_COSMOS_DATABASE:-bts}" \
     "BTS_LOG_LEVEL=${BTS_LOG_LEVEL:-INFO}"
@@ -65,6 +67,10 @@ fi
 if [[ -n "${BTS_COSMOS_KEY:-}" ]]; then
   SECRETS+=("cosmos-key=${BTS_COSMOS_KEY}")
   SECRET_ENVS+=("BTS_COSMOS_KEY=secretref:cosmos-key")
+fi
+if [[ -n "${APPLICATIONINSIGHTS_CONNECTION_STRING:-}" ]]; then
+  SECRETS+=("appinsights-connection=${APPLICATIONINSIGHTS_CONNECTION_STRING}")
+  SECRET_ENVS+=("APPLICATIONINSIGHTS_CONNECTION_STRING=secretref:appinsights-connection")
 fi
 if (( ${#SECRETS[@]} )); then
   az containerapp secret set --name "$APP" --resource-group "$RG" --output none --secrets "${SECRETS[@]}"

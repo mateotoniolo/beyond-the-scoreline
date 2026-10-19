@@ -12,6 +12,7 @@ from bts.api.sessions import SessionManager
 from bts.config import Settings, get_settings
 from bts.insights.foundry import make_crew, make_llm
 from bts.store.profiles import make_store
+from bts.telemetry import configure_telemetry
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
@@ -22,6 +23,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         level=settings.log_level.upper(),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    configure_telemetry(settings)  # before FastAPI() so the distro can instrument it
     app = FastAPI(title="Beyond the Scoreline", version=__version__)
     app.state.settings = settings
     app.state.llm = make_llm(settings)

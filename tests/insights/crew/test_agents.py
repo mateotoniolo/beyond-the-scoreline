@@ -62,3 +62,10 @@ def test_settings_read_agent_mode_and_app_insights(monkeypatch):
     settings = Settings(_env_file=None)
     assert settings.agent_mode == "simple"
     assert settings.app_insights_connection_string == "InstrumentationKey=abc"
+
+
+def test_settings_ignore_empty_env_values(monkeypatch):
+    monkeypatch.setenv("BTS_AGENT_MODE", "")
+    monkeypatch.setenv("BTS_FOUNDRY_ENDPOINT", "")
+    settings = Settings(_env_file=None)
+    assert settings.agent_mode is None and settings.foundry_endpoint is None

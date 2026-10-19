@@ -32,6 +32,27 @@ az cosmosdb keys list --name bts-cosmos-mt2026 --resource-group bts-rg --query p
 
 Put the endpoint and key into `.env` as `BTS_COSMOS_ENDPOINT` and `BTS_COSMOS_KEY`; the app creates the `bts` database and the `profiles` container (partition key `/user_id`) on first use. `infra/deploy.sh` stores the key as the `cosmos-key` secret. Without these variables the app keeps profiles in memory and logs `profiles: in-memory store`.
 
+## Application Insights (agent traces)
+
+Every crew run (agent, model call, tool call) is an OpenTelemetry span. One Application Insights resource receives them; connect it to the Foundry project as well and the same traces show in the Foundry portal under Tracing:
+
+```bash
+az extension add --name application-insights --upgrade
+az monitor app-insights component create --app bts-insights --location eastus2 \
+  --resource-group bts-rg --application-type web
+az monitor app-insights component show --app bts-insights --resource-group bts-rg \
+  --query connectionString -o tsv
+```
+
+Put the value into `.env` as `APPLICATIONINSIGHTS_CONNECTION_STRING`; `infra/deploy.sh` stores it as the `appinsights-connection` secret. Without it the app logs `telemetry: off`. Query the spans with:
+
+```bash
+az monitor app-insights query --app bts-insights --resource-group bts-rg \
+  --analytics-query "dependencies | where name startswith 'invoke_agent' | project timestamp, name, duration | top 20 by timestamp desc"
+```
+
+`BTS_AGENT_MODE=simple` turns the crew off (two prompts instead of four roles) without redeploying anything else.
+
 ## Judging window
 
 From 2026-10-27 to 2026-11-11 keep one replica warm so a judge never waits for a cold start:

@@ -11,7 +11,11 @@ AgentMode = Literal["crew", "simple"]
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="BTS_", env_file=".env", extra="ignore", populate_by_name=True
+        env_prefix="BTS_",
+        env_file=".env",
+        extra="ignore",
+        populate_by_name=True,
+        env_ignore_empty=True,  # the deploy script passes unset variables as ""
     )
 
     foundry_endpoint: str | None = None
