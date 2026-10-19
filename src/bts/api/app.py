@@ -2,10 +2,12 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from bts import __version__
+from bts.api.routes import router
+from bts.api.sessions import SessionManager
 from bts.config import Settings, get_settings
 from bts.insights.foundry import make_llm
 from bts.insights.pipeline import InsightService
@@ -19,13 +21,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.llm = make_llm(settings)
     app.state.insights = InsightService(app.state.llm)
+    app.state.sessions = SessionManager(app.state.insights)
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
         return {"status": "ok", "version": __version__}
 
-    api = APIRouter(prefix="/api")
-    app.include_router(api)
+    app.include_router(router)
 
     if (STATIC_DIR / "index.html").exists():
         app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

@@ -1,0 +1,204 @@
+"""Live match sessions: run the simulator in the background and fan out over queues."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import secrets
+from typing import Any, Literal
+
+from pydantic import BaseModel
+
+from bts.api.schemas import CreateMatch, MatchInfo
+from bts.insights.cues import from_insight
+from bts.insights.pipeline import InsightService
+from bts.insights.schemas import Cue, Insight, Lang, Profile, Recap
+from bts.sim.engine import MatchSimulator
+from bts.sim.league import build_league
+from bts.sim.models import Event
+from bts.stats.moments import KeyMomentDetector, Moment
+from bts.stats.state import MatchState, StatsSnapshot
+
+log = logging.getLogger(__name__)
+
+MessageType = Literal["status", "event", "stats", "moment", "insight", "cues"]
+STATS_EVERY_N_EVENTS = 4
+MAX_SLEEP_S = 5.0
+DEFAULT_VARIANT: tuple[Profile, Lang] = ("analyst", "en")
+
+
+class Message(BaseModel):
+    type: MessageType
+    data: Any
+
+
+class MatchSession:
+    def __init__(self, req: CreateMatch, insights: InsightService) -> None:
+        teams = {t.team_id: t for t in build_league(req.seed)}
+        self.sim = MatchSimulator(req.seed, teams[req.home], teams[req.away])
+        self.match_id = f"{req.seed}-{secrets.token_hex(3)}"
+        self.state = MatchState(self.sim.meta)
+        self.detector = KeyMomentDetector()
+        self.insights = insights
+        self.speed = req.speed
+        self.status: Literal["running", "finished"] = "running"
+        self.events: list[Event] = []
+        self.moments: list[Moment] = []
+        self._moment_context: dict[str, tuple[StatsSnapshot, list[Event]]] = {}
+        self._subscribers: dict[asyncio.Queue[Message | None], tuple[Profile, Lang]] = {}
+        self._recaps: dict[tuple[Profile, Lang], Recap] = {}
+        self._task: asyncio.Task[None] | None = None
+        self._children: set[asyncio.Task[None]] = set()
+
+    # ------------------------------------------------------------------ lifecycle
+    def start(self) -> None:
+        if self._task is None:
+            self._task = asyncio.create_task(self._run(), name=f"match-{self.match_id}")
+
+    async def _run(self) -> None:
+        prev_t: float | None = None
+        n = 0
+        try:
+            for event in self.sim.iter_events():
+                if prev_t is not None and event.t > prev_t:
+                    await asyncio.sleep(min((event.t - prev_t) / self.speed, MAX_SLEEP_S))
+                prev_t = event.t
+                self.state.ingest(event)
+                self.events.append(event)
+                n += 1
+                self._publish("event", event)
+                moment = self.detector.observe(event, self.state)
+                if moment is not None or n % STATS_EVERY_N_EVENTS == 0:
+                    self._publish("stats", self.state.snapshot())
+                if moment is not None:
+                    self._on_moment(moment)
+        except Exception:
+            log.exception("match %s crashed", self.match_id)
+        finally:
+            self.status = "finished"
+            self._publish("stats", self.state.snapshot())
+            self._publish("status", self.info())
+            for q in list(self._subscribers):
+                q.put_nowait(None)
+
+    def _on_moment(self, moment: Moment) -> None:
+        snap = self.state.snapshot()
+        self._moment_context[moment.moment_id] = (snap, self.state.recent_events(12))
+        self.moments.append(moment)
+        self._publish("moment", moment)
+        variants = {DEFAULT_VARIANT, *self._subscribers.values()}
+        for profile, lang in variants:
+            self._spawn(self._produce_insight(moment, profile, lang))
+
+    def _spawn(self, coro) -> None:
+        task = asyncio.create_task(coro)
+        self._children.add(task)
+        task.add_done_callback(self._children.discard)
+
+    async def _produce_insight(self, moment: Moment, profile: Profile, lang: Lang) -> None:
+        insight = await self.insight_for(moment, profile, lang)
+        self._publish("insight", insight, only=(profile, lang))
+        self._publish("cues", from_insight(insight, moment), only=(profile, lang))
+
+    # ------------------------------------------------------------------ pub/sub
+    def _publish(
+        self, type_: MessageType, data: Any, only: tuple[Profile, Lang] | None = None
+    ) -> None:
+        msg = Message(type=type_, data=data)
+        for q, variant in self._subscribers.items():
+            if only is None or variant == only:
+                q.put_nowait(msg)
+
+    def subscribe(self, profile: Profile, lang: Lang) -> asyncio.Queue[Message | None]:
+        q: asyncio.Queue[Message | None] = asyncio.Queue()
+        self._subscribers[q] = (profile, lang)
+        return q
+
+    def unsubscribe(self, q: asyncio.Queue[Message | None]) -> None:
+        self._subscribers.pop(q, None)
+
+    @property
+    def subscriber_count(self) -> int:
+        return len(self._subscribers)
+
+    # ------------------------------------------------------------------ queries
+    def info(self) -> MatchInfo:
+        return MatchInfo(
+            match_id=self.match_id,
+            meta=self.sim.meta,
+            score=self.state.score,
+            status=self.status,
+            clock=self.state.snapshot().clock,
+            speed=self.speed,
+            events_so_far=len(self.events),
+        )
+
+    def set_speed(self, speed: float) -> None:
+        self.speed = speed
+
+    def moment(self, moment_id: str) -> Moment | None:
+        return next((m for m in self.moments if m.moment_id == moment_id), None)
+
+    async def insight_for(self, moment: Moment, profile: Profile, lang: Lang) -> Insight:
+        snap, recent = self._moment_context[moment.moment_id]
+        return await self.insights.for_moment(moment, snap, recent, profile, lang)
+
+    async def insights_for(self, profile: Profile, lang: Lang) -> list[Insight]:
+        return list(
+            await asyncio.gather(*(self.insight_for(m, profile, lang) for m in self.moments))
+        )
+
+    def cached_insights(self, profile: Profile, lang: Lang) -> list[Insight]:
+        out = []
+        for m in self.moments:
+            ins = self.insights.cached(m.moment_id, profile, lang)
+            if ins is not None:
+                out.append(ins)
+        return out
+
+    async def cues_for(self, profile: Profile, lang: Lang) -> list[Cue]:
+        cues: list[Cue] = []
+        for moment, insight in zip(
+            self.moments, await self.insights_for(profile, lang), strict=True
+        ):
+            cues.extend(from_insight(insight, moment))
+        return cues
+
+    async def recap(self, profile: Profile, lang: Lang) -> Recap:
+        key = (profile, lang)
+        if key in self._recaps:
+            return self._recaps[key]
+        recap = await self.insights.recap(self.state.snapshot(), self.moments, profile, lang)
+        if self.status == "finished":
+            self._recaps[key] = recap
+        return recap
+
+
+class SessionManager:
+    def __init__(self, insights: InsightService) -> None:
+        self.insights = insights
+        self._sessions: dict[str, MatchSession] = {}
+
+    def create(self, req: CreateMatch) -> MatchSession:
+        session = MatchSession(req, self.insights)
+        self._sessions[session.match_id] = session
+        session.start()
+        return session
+
+    def get(self, match_id: str) -> MatchSession | None:
+        return self._sessions.get(match_id)
+
+    def all(self) -> list[MatchSession]:
+        return list(self._sessions.values())
+
+
+def sse_payload(msg: Message) -> dict[str, str]:
+    data = msg.data
+    if isinstance(data, BaseModel):
+        text = data.model_dump_json()
+    elif isinstance(data, list):
+        text = json.dumps([d.model_dump() if isinstance(d, BaseModel) else d for d in data])
+    else:
+        text = json.dumps(data)
+    return {"event": msg.type, "data": text}
