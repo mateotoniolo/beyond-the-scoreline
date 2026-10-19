@@ -40,4 +40,3 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if (STATIC_DIR / "index.html").exists():
         app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
     return app
-

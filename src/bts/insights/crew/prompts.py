@@ -30,7 +30,8 @@ def analyst_instructions() -> str:
         "counters, one player's influence, a momentum swing) and list the numbers that prove it "
         "as key_numbers, each as {stat, value} with stat being one of: "
         f"{STAT_NAMES}. Cite only numbers from the brief or the tools, and name the team or "
-        'player each one belongs to inside the value, e.g. "NTH 1.42". '
+        'player each one belongs to inside the value and nothing else, e.g. "NTH 1.42" (no stat '
+        "names or time windows in values). "
         "All clubs and players are fictional. Reply with JSON only."
     )
 
@@ -40,7 +41,8 @@ def narrator_instructions(profile: Profile, lang: Lang) -> str:
         explainer_system(profile, lang)
         + " You write from the tactical analyst's notes in this conversation: keep its pattern, "
         "use only numbers that appear in the notes, the moment or the statistics, and attribute "
-        "each number to the right team or player."
+        "each number to the right team or player. An evidence value holds the number and, at "
+        'most, the team or player name, e.g. "SMR 58.1"; never stat names or time windows.'
     )
 
 

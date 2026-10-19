@@ -16,6 +16,8 @@ from bts.stats.state import StatsSnapshot
 NUMBER_RE = re.compile(r"(?<!\d)-?\d+(?:\.\d+)?")
 PAREN_RE = re.compile(r"\([^)]*\)")
 CLOCK_RE = re.compile(r"\b(\d{1,3}):(\d{2})\b")
+# Identifiers such as ``last_5_min`` or ``shot_xg`` are labels, not numbers.
+IDENT_RE = re.compile(r"\S*_\S*")
 # Verifier replies that describe a claim as fine are commentary, not contradictions.
 NON_ISSUE_RE = re.compile(
     r"no issue|not a contradiction|matches|is supported|is correct|consistent with"
@@ -164,7 +166,7 @@ def check_facts(insight: Insight, snap: StatsSnapshot, moment: Moment) -> list[s
     pool = _strict_pool(snap, moment)
     for ev in insight.evidence:
         cleaned = CLOCK_RE.sub(lambda m: str(int(m[1]) + int(m[2]) / 60), ev.value)
-        cleaned = PAREN_RE.sub("", cleaned).replace("%", "")
+        cleaned = IDENT_RE.sub(" ", PAREN_RE.sub("", cleaned)).replace("%", "")
         numbers = [float(n) for n in NUMBER_RE.findall(cleaned)]
         if not numbers:
             continue

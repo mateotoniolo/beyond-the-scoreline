@@ -72,3 +72,10 @@ def test_clock_evidence_in_mm_ss_matches_the_moment(moment, snap):
     seconds = int(moment.t % 60)
     ev = _insight([Evidence(stat="clock", value=f"{minutes:02d}:{seconds:02d}")])
     assert check_facts(ev, snap, moment) == []
+
+
+def test_identifiers_inside_values_are_not_numbers(moment, snap):
+    last5 = snap.last5[moment.team_id].possession_pct
+    team = snap.team_names[moment.team_id]
+    ins = _insight([Evidence(stat="possession_pct", value=f"{team} last_5_min {last5:.2f}")])
+    assert check_facts(ins, snap, moment) == []
