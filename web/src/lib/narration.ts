@@ -126,18 +126,12 @@ const SILENCE =
  */
 export function htmlAudioPlayer(): Player & { unlock(): void } {
   let audio: HTMLAudioElement | null = null;
+  let generation = 0;
   let settle: (() => void) | null = null;
   const element = () => {
     if (!audio) {
       audio = new Audio();
       audio.preload = "auto";
-      const done = () => {
-        const s = settle;
-        settle = null;
-        s?.();
-      };
-      audio.addEventListener("ended", done);
-      audio.addEventListener("error", done);
     }
     return audio;
   };
@@ -150,23 +144,28 @@ export function htmlAudioPlayer(): Player & { unlock(): void } {
     },
     play(url: string) {
       const a = element();
+      const token = ++generation;
       return new Promise<void>((resolve) => {
-        settle = resolve;
-        a.src = url;
-        a.play().catch(() => {
-          const s = settle;
+        // A late `ended` or `error` of an earlier clip must not settle this one.
+        const finish = () => {
+          if (token !== generation) return;
+          a.removeEventListener("ended", finish);
+          a.removeEventListener("error", finish);
           settle = null;
-          s?.();
-        });
+          resolve();
+        };
+        settle = finish;
+        a.addEventListener("ended", finish);
+        a.addEventListener("error", finish);
+        a.src = url;
+        a.play().catch(finish);
       });
     },
     stop() {
       if (!audio) return;
       audio.pause();
       audio.removeAttribute("src");
-      const s = settle;
-      settle = null;
-      s?.();
+      settle?.();
     },
   };
 }

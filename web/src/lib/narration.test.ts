@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { LABELS, NarrationQueue, STALE_MS, readPreference, writePreference, type Player } from "./narration";
+import { LABELS, NarrationQueue, STALE_MS, htmlAudioPlayer, readPreference, writePreference, type Player } from "./narration";
 
 class FakePlayer implements Player {
   played: string[] = [];
@@ -128,4 +128,47 @@ test("preference round trip and a full label set per language", () => {
   }
   expect(LABELS.en.toggle).toBe("Narration");
   expect(LABELS.es.toggle).toBe("Narración");
+});
+
+class FakeAudio extends EventTarget {
+  src = "";
+  paused = true;
+  preload = "";
+  /** One entry per play() call, so a test can reject an earlier call after a later one started. */
+  pending: { resolve: () => void; reject: (e: Error) => void }[] = [];
+  play(): Promise<void> {
+    this.paused = false;
+    return new Promise<void>((resolve, reject) => this.pending.push({ resolve, reject }));
+  }
+  pause(): void {
+    this.paused = true;
+  }
+  removeAttribute(): void {
+    this.src = "";
+  }
+}
+
+test("a late rejection of a failed clip's play() does not settle the next clip", async () => {
+  const created: FakeAudio[] = [];
+  (globalThis as unknown as { Audio: unknown }).Audio = class extends FakeAudio {
+    constructor() {
+      super();
+      created.push(this);
+    }
+  };
+  const player = htmlAudioPlayer();
+  const first = player.play("/first");
+  const el = created[0];
+  el.dispatchEvent(new Event("error")); // the browser reports the failed load first
+  await first;
+  let secondDone = false;
+  const second = player.play("/second").then(() => {
+    secondDone = true;
+  });
+  el.pending[0].reject(new DOMException("NotSupportedError", "NotSupportedError")); // then rejects /first
+  await flush();
+  expect(secondDone).toBe(false);
+  el.dispatchEvent(new Event("ended"));
+  await second;
+  expect(secondDone).toBe(true);
 });
