@@ -183,6 +183,24 @@ export interface Cue {
   shown_from?: number;
 }
 
+export interface AskRequest {
+  question: string;
+  profile: Profile;
+  lang: Lang;
+  conversation_id?: string | null;
+}
+
+/** One answer of the "Ask the match" agent; citations are checked against the live statistics. */
+export interface AskResult {
+  conversation_id: string;
+  answer: string;
+  citations: Evidence[];
+  verified: boolean;
+  grounded: boolean;
+  source: "llm" | "template";
+  trace: AgentStep[];
+}
+
 export interface UserProfile {
   user_id: string;
   profile: Profile;

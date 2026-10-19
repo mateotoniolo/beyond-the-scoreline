@@ -1,4 +1,16 @@
-import type { Cue, Insight, Lang, MatchInfo, Profile, Recap, StatsSnapshot, TeamSummary, UserProfile } from "./types";
+import type {
+  AskRequest,
+  AskResult,
+  Cue,
+  Insight,
+  Lang,
+  MatchInfo,
+  Profile,
+  Recap,
+  StatsSnapshot,
+  TeamSummary,
+  UserProfile,
+} from "./types";
 
 async function json<T>(input: string, init?: RequestInit): Promise<T> {
   const res = await fetch(input, init);
@@ -39,6 +51,13 @@ export const getCues = (id: string, profile: Profile, lang: Lang) =>
 
 export const getRecap = (id: string, profile: Profile, lang: Lang) =>
   json<Recap>(`/api/matches/${id}/recap?${variant(profile, lang)}`);
+
+export const ask = (id: string, body: AskRequest) =>
+  json<AskResult>(`/api/matches/${id}/ask`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
 
 export const streamUrl = (id: string, profile: Profile, lang: Lang) =>
   `/api/matches/${id}/stream?${variant(profile, lang)}`;

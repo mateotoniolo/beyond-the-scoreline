@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createMatch, getProfile, getRecap, getTeams, putProfile } from "./api";
+import { AskPanel } from "./components/AskPanel";
 import { Controls, type Setup } from "./components/Controls";
 import { EventFeed } from "./components/EventFeed";
 import { InsightFeed } from "./components/InsightFeed";
@@ -116,6 +117,7 @@ export default function App() {
           <aside className="main__rail">
             <StatsPanel stats={stream.stats} meta={info.meta} lang={lang} />
             <InsightFeed insights={stream.insights} moments={stream.moments} meta={info.meta} lang={lang} favorite={favorite} />
+            <AskPanel key={info.match_id} matchId={info.match_id} profile={profile} lang={lang} />
           </aside>
         </main>
       ) : (

@@ -1,8 +1,8 @@
 import type { AgentStep, Lang } from "../types";
 
 const ROLE: Record<Lang, Record<string, string>> = {
-  en: { tactical_analyst: "Analyst", narrator: "Narrator", fact_checker: "Fact checker", producer: "Producer" },
-  es: { tactical_analyst: "Analista", narrator: "Narrador", fact_checker: "Verificador", producer: "Productor" },
+  en: { tactical_analyst: "Analyst", narrator: "Narrator", fact_checker: "Fact checker", producer: "Producer", match_qa: "Match agent" },
+  es: { tactical_analyst: "Analista", narrator: "Narrador", fact_checker: "Verificador", producer: "Productor", match_qa: "Agente del partido" },
 };
 const TOOLS: Record<Lang, [string, string]> = { en: ["tool", "tools"], es: ["herramienta", "herramientas"] };
 
