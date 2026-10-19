@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     agent_mode: AgentMode | None = None
     # Ask the match (question desk); unset = on whenever the crew is on.
     qa_enabled: bool | None = None
+    # Azure AI Speech (narration); unset BTS_SPEECH_ENABLED = on whenever key and region are set.
+    speech_key: str | None = None
+    speech_region: str | None = None
+    speech_enabled: bool | None = None
     cosmos_endpoint: str | None = None
     cosmos_key: str | None = None
     cosmos_database: str = "bts"

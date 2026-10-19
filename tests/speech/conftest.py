@@ -3,6 +3,7 @@ import pytest
 from bts.insights import templates
 from bts.insights.schemas import Insight, Recap
 from bts.sim.engine import simulate
+from bts.speech.client import SpeechError
 from tests.insights.conftest import run_detector
 
 
@@ -45,7 +46,7 @@ def recap_en(snap, moments) -> Recap:
 class StubSpeech:
     """A synthesizer that records every SSML it receives and answers with fake MP3 bytes."""
 
-    def __init__(self, fail: Exception | None = None) -> None:
+    def __init__(self, fail: SpeechError | None = None) -> None:
         self.ssml: list[str] = []
         self.fail = fail
 
