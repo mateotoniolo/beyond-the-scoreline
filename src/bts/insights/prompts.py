@@ -12,7 +12,7 @@ from bts.stats.state import StatsSnapshot
 LANG_NAME = {"en": "English", "es": "Spanish (Rioplatense register, neutral enough for any market)"}
 
 
-def _moment_payload(moment: Moment, snap: StatsSnapshot) -> dict:
+def moment_payload(moment: Moment, snap: StatsSnapshot) -> dict:
     """The moment with team and player names, so the model never has to decode ids."""
     data = moment.model_dump()
     team = snap.team_names.get(moment.team_id or "")
@@ -29,7 +29,7 @@ def _moment_payload(moment: Moment, snap: StatsSnapshot) -> dict:
     return data
 
 
-def _snapshot_summary(snap: StatsSnapshot) -> dict:
+def snapshot_summary(snap: StatsSnapshot) -> dict:
     home, away = snap.team_names[snap.home_id], snap.team_names[snap.away_id]
     return {
         "clock": snap.clock,
@@ -44,7 +44,7 @@ def _snapshot_summary(snap: StatsSnapshot) -> dict:
     }
 
 
-def _events_summary(events: list[Event], snap: StatsSnapshot) -> list[dict]:
+def events_summary(events: list[Event], snap: StatsSnapshot) -> list[dict]:
     out = []
     for e in events:
         name = snap.players[e.player_id].name if e.player_id in snap.players else e.player_id
@@ -95,10 +95,10 @@ def explainer_user(
     moment: Moment, snap: StatsSnapshot, recent: list[Event], issues: list[str] | None = None
 ) -> str:
     payload = {
-        "moment": _moment_payload(moment, snap),
+        "moment": moment_payload(moment, snap),
         "team_names": snap.team_names,
-        "statistics": _snapshot_summary(snap),
-        "recent_events": _events_summary(recent, snap),
+        "statistics": snapshot_summary(snap),
+        "recent_events": events_summary(recent, snap),
     }
     text = json.dumps(payload, ensure_ascii=False)
     if issues:
@@ -127,9 +127,9 @@ def verifier_user(insight: Insight, snap: StatsSnapshot, moment: Moment) -> str:
             "why_it_matters": insight.why_it_matters,
             "evidence": [e.model_dump() for e in insight.evidence],
         },
-        "moment": _moment_payload(moment, snap),
+        "moment": moment_payload(moment, snap),
         "team_names": snap.team_names,
-        "statistics": _snapshot_summary(snap),
+        "statistics": snapshot_summary(snap),
     }
     return json.dumps(payload, ensure_ascii=False)
 
@@ -146,8 +146,8 @@ def recap_system(profile: Profile, lang: Lang) -> str:
 
 def recap_user(snap: StatsSnapshot, moments: list[Moment], profile: Profile, lang: Lang) -> str:
     payload = {
-        "statistics": _snapshot_summary(snap),
-        "moments": [_moment_payload(m, snap) for m in moments],
+        "statistics": snapshot_summary(snap),
+        "moments": [moment_payload(m, snap) for m in moments],
         "team_names": snap.team_names,
     }
     return json.dumps(payload, ensure_ascii=False)

@@ -79,11 +79,11 @@ async def test_unexpected_error_falls_back_to_template(moment, snap, recent):
 
 
 def test_moment_payload_expresses_momentum_for_the_named_team(detected11):
-    from bts.insights.prompts import _moment_payload
+    from bts.insights.prompts import moment_payload
 
     snap, moments = detected11
     shift = next(x for x in moments if x.type == "momentum_shift")
-    data = _moment_payload(shift, snap)
+    data = moment_payload(shift, snap)
     sign = 1 if shift.team_id == snap.home_id else -1
     assert data["team"] == snap.team_names[shift.team_id]
     assert data["facts"]["momentum_now"] == round(sign * float(shift.facts["momentum_now"]), 3)
