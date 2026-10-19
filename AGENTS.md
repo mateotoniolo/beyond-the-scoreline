@@ -1,12 +1,12 @@
 # AGENTS.md
 
-Beyond the Scoreline: a synthetic match intelligence engine built for the Microsoft + Premier League "Inside the Game" hackathon. One container runs a seeded football simulator, a deterministic stats layer, a Microsoft Foundry explainer with a verifier, overlay cues and a React UI.
+Beyond the Scoreline: a synthetic match intelligence engine built for the Microsoft + Premier League "Inside the Game" hackathon. One container runs a seeded football simulator, a deterministic stats layer, a Microsoft Agent Framework crew on a Foundry model (tactical analyst, narrator, fact checker, producer) with a simple explainer/verifier fallback, overlay cues and a React UI.
 
 ## Map
 
 - `src/bts/sim/` generates the fictional league and the match (events with pitch coordinates 0 to 100). No LLM here.
 - `src/bts/stats/` turns events into statistics, observable momentum and key moments. No LLM here.
-- `src/bts/insights/` explains moments: prompts, `LLMClient` protocol, Foundry client, verifier, template fallback, overlay cues.
+- `src/bts/insights/` explains moments: `crew/` (Agent Framework roles, tools over `MatchContext`, producer, cue planning), prompts, `LLMClient` protocol, Foundry client, verifier, template fallback, overlay cues.
 - `src/bts/api/` FastAPI app, live match sessions and the SSE stream.
 - `src/bts/store/` user profiles (in memory or Azure Cosmos DB).
 - `web/` Vite + React + TypeScript UI, built into `src/bts/static/`.
