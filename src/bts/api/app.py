@@ -11,6 +11,7 @@ from bts.api.routes import router
 from bts.api.sessions import SessionManager
 from bts.config import Settings, get_settings
 from bts.insights.foundry import make_crew, make_llm, make_qa
+from bts.speech import make_narrator
 from bts.store.profiles import make_store
 from bts.telemetry import configure_telemetry
 
@@ -30,6 +31,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.crew_factory = make_crew(settings)
     app.state.sessions = SessionManager(app.state.llm, crew_factory=app.state.crew_factory)
     app.state.qa = make_qa(settings)  # the question desk; None when off
+    app.state.narrator = make_narrator(settings)  # spoken insights; None when off
     app.state.profiles = make_store(settings)
 
     @app.get("/healthz")

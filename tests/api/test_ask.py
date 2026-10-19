@@ -80,6 +80,7 @@ async def test_session_satisfies_live_match():
 
 
 async def test_features_tell_the_ui_whether_the_desk_is_on(client, app):
-    assert (await client.get("/api/features")).json() == {"ask_the_match": False}
+    features = (await client.get("/api/features")).json()
+    assert features == {"ask_the_match": False, "narration": False}
     app.state.qa = _StubQA()
-    assert (await client.get("/api/features")).json() == {"ask_the_match": True}
+    assert (await client.get("/api/features")).json()["ask_the_match"] is True

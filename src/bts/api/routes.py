@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -14,6 +14,7 @@ from bts.insights.qa.schemas import AskResult
 from bts.insights.schemas import Cue, Insight, Lang, Profile, Recap
 from bts.sim.league import build_league, venue_for
 from bts.sim.models import Event
+from bts.speech import Narrator, SpeechError
 from bts.stats.moments import Moment
 from bts.stats.state import StatsSnapshot
 from bts.store.profiles import UserProfile
@@ -22,6 +23,7 @@ router = APIRouter(prefix="/api", tags=["matches"])
 
 ProfileQ = Annotated[Profile, Query()]
 LangQ = Annotated[Lang, Query()]
+AUDIO_HEADERS = {"Cache-Control": "private, max-age=86400"}
 
 
 def _session(request: Request, match_id: str) -> MatchSession:
@@ -29,6 +31,24 @@ def _session(request: Request, match_id: str) -> MatchSession:
     if session is None:
         raise HTTPException(status_code=404, detail="match not found")
     return session
+
+
+def _narrator(request: Request) -> Narrator:
+    narrator = request.app.state.narrator
+    if narrator is None:
+        raise HTTPException(
+            status_code=404,
+            detail="narration is off (BTS_SPEECH_ENABLED or BTS_SPEECH_KEY and BTS_SPEECH_REGION)",
+        )
+    return narrator
+
+
+async def _audio(coro) -> Response:
+    try:
+        audio = await coro
+    except SpeechError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return Response(content=audio, media_type="audio/mpeg", headers=AUDIO_HEADERS)
 
 
 @router.get("/teams", response_model=list[TeamSummary])
@@ -49,7 +69,10 @@ async def teams() -> list[TeamSummary]:
 @router.get("/features")
 async def features(request: Request) -> dict[str, bool]:
     """Which optional features this deployment serves, so the UI shows only live ones."""
-    return {"ask_the_match": request.app.state.qa is not None}
+    return {
+        "ask_the_match": request.app.state.qa is not None,
+        "narration": request.app.state.narrator is not None,
+    }
 
 
 @router.post("/matches", response_model=MatchInfo, status_code=status.HTTP_201_CREATED)
@@ -111,6 +134,25 @@ async def insight(
     return await session.insight_for(moment, profile, lang)
 
 
+@router.get("/matches/{match_id}/insights/{moment_id}/audio", response_class=Response)
+async def insight_audio(
+    request: Request,
+    match_id: str,
+    moment_id: str,
+    profile: ProfileQ = "analyst",
+    lang: LangQ = "en",
+) -> Response:
+    """The spoken insight (MP3) for a moment, once that variant has been produced."""
+    session = _session(request, match_id)
+    narrator = _narrator(request)
+    if session.moment(moment_id) is None:
+        raise HTTPException(status_code=404, detail="moment not found")
+    insight = session.cached_insight(moment_id, profile, lang)
+    if insight is None:
+        raise HTTPException(status_code=404, detail="insight not ready")
+    return await _audio(narrator.narrate_insight(session.match_id, insight))
+
+
 @router.get("/matches/{match_id}/cues", response_model=list[Cue])
 async def cues(
     request: Request, match_id: str, profile: ProfileQ = "analyst", lang: LangQ = "en"
@@ -123,6 +165,17 @@ async def recap(
     request: Request, match_id: str, profile: ProfileQ = "analyst", lang: LangQ = "en"
 ) -> Recap:
     return await _session(request, match_id).recap(profile, lang)
+
+
+@router.get("/matches/{match_id}/recap/audio", response_class=Response)
+async def recap_audio(
+    request: Request, match_id: str, profile: ProfileQ = "analyst", lang: LangQ = "en"
+) -> Response:
+    """The spoken full-time recap (MP3)."""
+    session = _session(request, match_id)
+    narrator = _narrator(request)
+    recap = await session.recap(profile, lang)
+    return await _audio(narrator.narrate_recap(session.match_id, recap))
 
 
 @router.post("/matches/{match_id}/ask", response_model=AskResult)
