@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Deploy Beyond the Scoreline to Azure Container Apps from source (one container).
+# Deploy Beyond the Scoreline to Azure Container Apps (one container).
 #
-# Prerequisites: `az login` done, an Azure subscription selected, and a .env file with
-# BTS_FOUNDRY_ENDPOINT / BTS_FOUNDRY_API_KEY / BTS_FOUNDRY_MODEL (and optionally the
-# BTS_COSMOS_* variables). Usage:
-#   infra/deploy.sh            # create or update the app, min replicas 0
+# The image is built locally (Docker, linux/amd64) and pushed to an Azure Container Registry,
+# because free-trial subscriptions cannot run ACR Tasks (the `az containerapp up --source` path).
+#
+# Prerequisites: Docker running, `az login` done, and a .env with BTS_FOUNDRY_ENDPOINT /
+# BTS_FOUNDRY_API_KEY / BTS_FOUNDRY_MODEL (and optionally the BTS_COSMOS_* variables). Usage:
+#   infra/deploy.sh                  # build, push, create or update the app, min replicas 0
 #   MIN_REPLICAS=1 infra/deploy.sh   # keep one replica warm (judging window)
 set -euo pipefail
 
@@ -12,8 +14,11 @@ RG="${RG:-bts-rg}"
 LOCATION="${LOCATION:-eastus2}"
 APP="${APP:-bts}"
 ENV_NAME="${ENV_NAME:-bts-env}"
+ACR="${ACR:-btsmt2026acr}"
 MIN_REPLICAS="${MIN_REPLICAS:-0}"
 ENV_FILE="${ENV_FILE:-.env}"
+TAG="${TAG:-$(git rev-parse --short HEAD 2>/dev/null || date +%s)}"
+IMAGE="$ACR.azurecr.io/bts:$TAG"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "missing $ENV_FILE (copy .env.example)" >&2
@@ -23,14 +28,24 @@ fi
 set -a; source "$ENV_FILE"; set +a
 
 az group create --name "$RG" --location "$LOCATION" --output none
+az acr create --name "$ACR" --resource-group "$RG" --sku Basic --admin-enabled true --output none
+az acr login --name "$ACR"
 
-# Build from the Dockerfile in the cloud and create/update the app with external ingress.
+echo "building $IMAGE"
+docker buildx build --platform linux/amd64 -t "$IMAGE" --push .
+
+ACR_USER=$(az acr credential show --name "$ACR" --query username -o tsv)
+ACR_PASS=$(az acr credential show --name "$ACR" --query 'passwords[0].value' -o tsv)
+
 az containerapp up \
   --name "$APP" \
   --resource-group "$RG" \
   --location "$LOCATION" \
   --environment "$ENV_NAME" \
-  --source . \
+  --image "$IMAGE" \
+  --registry-server "$ACR.azurecr.io" \
+  --registry-username "$ACR_USER" \
+  --registry-password "$ACR_PASS" \
   --ingress external \
   --target-port 8000 \
   --env-vars \
