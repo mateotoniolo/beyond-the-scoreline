@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import secrets
 from collections import OrderedDict
 from time import perf_counter
@@ -34,6 +35,12 @@ MEMORY_MESSAGES = 6  # three exchanges
 MAX_CONVERSATIONS = 256
 
 ConversationKey = tuple[str, str]
+# The model sometimes repeats a citation inside the prose as "{passes, Name 3}"; drop those.
+BRACES_RE = re.compile(r"\s*\{[^{}]*\}")
+
+
+def clean_prose(text: str) -> str:
+    return re.sub(r"[ \t]{2,}", " ", BRACES_RE.sub("", text)).strip()
 
 
 class QAError(Exception):
@@ -98,7 +105,8 @@ class QAAgent:
         verified = answer.grounded and bool(answer.citations) and not issues
         if issues:
             log.info("qa citations rejected for %s: %s", key, issues)
-        self._remember(key, question, answer.answer)
+        prose = clean_prose(answer.answer) or FALLBACK[lang]
+        self._remember(key, question, prose)
         log.info(
             "qa answered %s in %sms (tools=%s verified=%s grounded=%s)",
             key,
@@ -109,7 +117,7 @@ class QAAgent:
         )
         return AskResult(
             conversation_id=conversation_id,
-            answer=answer.answer,
+            answer=prose,
             citations=answer.citations,
             verified=verified,
             grounded=answer.grounded,

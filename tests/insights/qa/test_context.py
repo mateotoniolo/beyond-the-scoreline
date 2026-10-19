@@ -162,3 +162,15 @@ def test_insight_records_the_evidence_it_served(live):
     live.insights[(goal.moment_id, "analyst", "en")] = insight
     ctx.insight(goal.moment_id)
     assert ctx.served == insight.evidence
+
+
+def test_lineup_carries_each_player_statistics(live):
+    snap = live.snapshot()
+    data = json.loads(QAContext(live, "analyst", "en").lineup(live.meta.away.short_name))
+    played = next(p for p in data["players"] if p["passes"] > 0)
+    stats = next(s for s in snap.players.values() if s.name == played["player"])
+    assert played["passes"] == stats.passes and played["xg"] == stats.xg
+    bench = next(
+        p for p in data["players"] if p["player"] not in {s.name for s in snap.players.values()}
+    )
+    assert bench["passes"] == 0 and bench["shots"] == 0 and bench["position"]

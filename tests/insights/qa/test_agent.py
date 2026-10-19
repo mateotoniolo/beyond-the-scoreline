@@ -199,3 +199,20 @@ async def test_qa_live_round_trip(live):
     print("citations:", [(c.stat, c.value) for c in out.citations])
     print("trace:", [(s.agent, s.ms, s.tool_calls) for s in out.trace])
     assert out.source == "llm" and out.grounded
+
+
+async def test_citation_braces_are_stripped_from_the_prose(live):
+    qa = _qa()
+    noisy = QAAnswer(
+        answer=(
+            "Penton sin pases {passes, Idio Penton 0} y Stanworth 8 de 10 "
+            "{passes, Lorel Stanworth 10}."
+        ),
+        citations=[],
+        confidence=0.5,
+        grounded=True,
+    )
+    _script(qa, noisy)
+    out = await qa.ask(live, "¿Y el arquero?", "analyst", "es")
+    assert out.answer == "Penton sin pases y Stanworth 8 de 10."
+    assert qa.history(live.match_id, out.conversation_id)[1].text == out.answer

@@ -161,9 +161,13 @@ class QAContext:
             return dump({"unknown_team": team, "teams": team_names(snap)})
         meta = self.match.meta
         squad = meta.home if tid == meta.home.team_id else meta.away
-        players = [
-            {"player": p.name, "position": p.position, "shirt": p.shirt} for p in squad.players
-        ]
+        players = []
+        for p in squad.players:
+            stats = snap.players.get(p.player_id) or PlayerStats(
+                player_id=p.player_id, name=p.name, team_id=p.team_id
+            )
+            numbers = stats.model_dump(include=set(PLAYER_STATS))
+            players.append({"player": p.name, "position": p.position, "shirt": p.shirt, **numbers})
         return dump({"team": snap.team_names[tid], "players": players})
 
     def last_five_minutes(self) -> str:
@@ -244,7 +248,7 @@ class QAContext:
             return ctx.top_players(stat, n)
 
         def get_lineup(team: TeamName) -> str:
-            """The team's players with position (GK, DF, MF, FW) and shirt number."""
+            """The team's players with position (GK, DF, MF, FW), shirt and match statistics."""
             return ctx.lineup(team)
 
         def get_last_five_minutes() -> str:
