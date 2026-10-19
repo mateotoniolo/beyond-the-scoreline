@@ -89,3 +89,23 @@ def test_make_crew_respects_simple_mode_and_missing_key():
 
     assert make_crew(_live_settings(agent_mode="simple")) is None
     assert make_crew(_live_settings(foundry_api_key=None, agent_mode="crew")) is None
+
+
+def test_make_qa_follows_the_flag_and_the_crew(monkeypatch):
+    from bts.insights.foundry import make_qa
+    from bts.insights.qa.agent import QAAgent
+
+    assert isinstance(make_qa(_live_settings()), QAAgent)  # unset flag, crew on
+    assert make_qa(_live_settings(qa_enabled=False)) is None
+    assert make_qa(_live_settings(agent_mode="simple")) is None  # unset flag, crew off
+    assert isinstance(make_qa(_live_settings(agent_mode="simple", qa_enabled=True)), QAAgent)
+    assert make_qa(_live_settings(foundry_api_key=None, qa_enabled=True)) is None
+    monkeypatch.delenv("BTS_FOUNDRY_ENDPOINT", raising=False)
+    assert make_qa(Settings(_env_file=None, qa_enabled=True)) is None
+
+
+def test_settings_read_qa_enabled(monkeypatch):
+    monkeypatch.setenv("BTS_QA_ENABLED", "false")
+    assert Settings(_env_file=None).qa_enabled is False
+    monkeypatch.setenv("BTS_QA_ENABLED", "")
+    assert Settings(_env_file=None).qa_enabled is None

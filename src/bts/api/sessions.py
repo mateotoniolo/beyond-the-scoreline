@@ -18,7 +18,7 @@ from bts.insights.pipeline import InsightService
 from bts.insights.schemas import Cue, Insight, Lang, Profile, Recap
 from bts.sim.engine import MatchSimulator
 from bts.sim.league import build_league
-from bts.sim.models import Event
+from bts.sim.models import Event, MatchMeta
 from bts.stats.moments import KeyMomentDetector, Moment
 from bts.stats.state import MatchState, StatsSnapshot
 
@@ -172,6 +172,17 @@ class MatchSession:
         return len(self._subscribers)
 
     # ------------------------------------------------------------------ queries
+    @property
+    def meta(self) -> MatchMeta:
+        return self.sim.meta
+
+    def snapshot(self) -> StatsSnapshot:
+        """The statistics right now (the question desk reads the live state through this)."""
+        return self.state.snapshot()
+
+    def cached_insight(self, moment_id: str, profile: Profile, lang: Lang) -> Insight | None:
+        return self.insights.cached(moment_id, profile, lang)
+
     def info(self) -> MatchInfo:
         return MatchInfo(
             match_id=self.match_id,

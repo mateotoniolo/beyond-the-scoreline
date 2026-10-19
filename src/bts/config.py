@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     foundry_model: str = "gpt-5-mini"
     # crew = Agent Framework roles (default when a model endpoint is set); simple = two prompts.
     agent_mode: AgentMode | None = None
+    # Ask the match (question desk); unset = on whenever the crew is on.
+    qa_enabled: bool | None = None
     cosmos_endpoint: str | None = None
     cosmos_key: str | None = None
     cosmos_database: str = "bts"

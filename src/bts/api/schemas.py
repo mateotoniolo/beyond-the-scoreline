@@ -4,11 +4,13 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from bts.insights.schemas import Lang, Profile
 from bts.sim.league import STYLES
 from bts.sim.models import MatchMeta, TeamStyle
 
 TEAM_IDS = [f"t{i + 1}" for i in range(len(STYLES))]
 MAX_SPEED = 6000.0
+QUESTION_MAX = 300
 
 
 class CreateMatch(BaseModel):
@@ -28,6 +30,13 @@ class CreateMatch(BaseModel):
 
 class SpeedUpdate(BaseModel):
     speed: float = Field(gt=0, le=MAX_SPEED)
+
+
+class AskRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=QUESTION_MAX)
+    profile: Profile = "analyst"
+    lang: Lang = "en"
+    conversation_id: str | None = Field(default=None, max_length=64)
 
 
 class TeamSummary(BaseModel):

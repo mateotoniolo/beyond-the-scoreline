@@ -8,8 +8,9 @@ from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from bts.api.schemas import CreateMatch, MatchInfo, SpeedUpdate, TeamSummary
+from bts.api.schemas import AskRequest, CreateMatch, MatchInfo, SpeedUpdate, TeamSummary
 from bts.api.sessions import MatchSession, Message, SessionManager, sse_payload
+from bts.insights.qa.schemas import AskResult
 from bts.insights.schemas import Cue, Insight, Lang, Profile, Recap
 from bts.sim.league import build_league, venue_for
 from bts.sim.models import Event
@@ -116,6 +117,19 @@ async def recap(
     request: Request, match_id: str, profile: ProfileQ = "analyst", lang: LangQ = "en"
 ) -> Recap:
     return await _session(request, match_id).recap(profile, lang)
+
+
+@router.post("/matches/{match_id}/ask", response_model=AskResult)
+async def ask(request: Request, match_id: str, body: AskRequest) -> AskResult:
+    """Answer a free-text question from this match's data only (the question desk agent)."""
+    session = _session(request, match_id)
+    qa = request.app.state.qa
+    if qa is None:
+        raise HTTPException(
+            status_code=404,
+            detail="ask the match is off (BTS_QA_ENABLED or the Foundry settings)",
+        )
+    return await qa.ask(session, body.question, body.profile, body.lang, body.conversation_id)
 
 
 @router.get("/matches/{match_id}/stream")

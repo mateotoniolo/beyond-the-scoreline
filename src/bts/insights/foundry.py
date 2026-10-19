@@ -20,6 +20,7 @@ from bts.insights.llm import FakeLLM, LLMClient, LLMError
 
 if TYPE_CHECKING:
     from bts.insights.crew.crew import AgentCrew
+    from bts.insights.qa.agent import QAAgent
 
 log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
@@ -85,16 +86,24 @@ def make_llm(settings: Settings) -> LLMClient:
     return FakeLLM([])
 
 
-def make_crew(settings: Settings) -> CrewFactory | None:
-    """A per-session crew factory sharing one chat client, or None for the simple pipeline.
+def agent_framework_ready(settings: Settings) -> bool:
+    """Agent Framework agents need the Foundry endpoint and an API key."""
+    return bool(settings.foundry_endpoint and settings.foundry_api_key)
 
-    ``BTS_AGENT_MODE`` decides; unset, the crew is on whenever a model endpoint exists.
-    """
+
+def crew_enabled(settings: Settings) -> bool:
+    """``BTS_AGENT_MODE`` decides; unset, the crew is on whenever a model endpoint exists."""
+    mode = settings.agent_mode or ("crew" if settings.foundry_endpoint else "simple")
+    return mode == "crew" and agent_framework_ready(settings)
+
+
+def make_crew(settings: Settings) -> CrewFactory | None:
+    """A per-session crew factory sharing one chat client, or None for the simple pipeline."""
     mode = settings.agent_mode or ("crew" if settings.foundry_endpoint else "simple")
     if mode != "crew":
         log.info("agents: simple pipeline (BTS_AGENT_MODE=%s)", mode)
         return None
-    if not settings.foundry_endpoint or not settings.foundry_api_key:
+    if not agent_framework_ready(settings):
         log.warning("agents: the crew needs BTS_FOUNDRY_ENDPOINT and an API key; simple pipeline")
         return None
     from bts.insights.crew.agents import make_chat_client
@@ -104,3 +113,18 @@ def make_crew(settings: Settings) -> CrewFactory | None:
     model = settings.foundry_model
     log.info("agents: Microsoft Agent Framework crew on %s", model)
     return lambda: AgentCrew(client, model)
+
+
+def make_qa(settings: Settings) -> QAAgent | None:
+    """The question desk agent, or None when ``BTS_QA_ENABLED`` (default: the crew) says no."""
+    enabled = settings.qa_enabled if settings.qa_enabled is not None else crew_enabled(settings)
+    if not enabled:
+        log.info("ask the match: off (BTS_QA_ENABLED=%s)", settings.qa_enabled)
+        return None
+    if not agent_framework_ready(settings):
+        log.warning("ask the match: needs BTS_FOUNDRY_ENDPOINT and an API key; off")
+        return None
+    from bts.insights.qa.agent import QAAgent
+
+    log.info("ask the match: question desk on %s", settings.foundry_model)
+    return QAAgent.from_settings(settings)
