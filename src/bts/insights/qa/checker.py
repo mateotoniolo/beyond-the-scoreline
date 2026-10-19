@@ -13,8 +13,11 @@ from collections.abc import Sequence
 from bts.insights.qa.context import PLAYER_STATS
 from bts.insights.schemas import Evidence
 from bts.insights.verifier import CLOCK_RE, IDENT_RE, NUMBER_RE, PAREN_RE, _close, _normalize
+from bts.sim.models import MatchMeta
 from bts.stats.moments import Moment
 from bts.stats.state import StatsSnapshot
+
+Roster = dict[str, str]  # lower-case player name -> player id
 
 QA_ALIASES = {
     "chances_created": "key_passes",
@@ -31,11 +34,18 @@ def _numbers(value: str) -> list[float]:
     return [float(n) for n in NUMBER_RE.findall(cleaned)]
 
 
-def _qualifier(value: str, snap: StatsSnapshot) -> tuple[str, str] | None:
+def roster_of(meta: MatchMeta | None) -> Roster:
+    if meta is None:
+        return {}
+    return {p.name.lower(): p.player_id for t in (meta.home, meta.away) for p in t.players}
+
+
+def _qualifier(value: str, snap: StatsSnapshot, roster: Roster) -> tuple[str, str] | None:
     """``("player", id)`` or ``("team", id)`` when the value names one, else None."""
     text = value.lower()
-    for pid, player in snap.players.items():
-        if player.name.lower() in text:
+    names = {**roster, **{p.name.lower(): pid for pid, p in snap.players.items()}}
+    for name, pid in names.items():
+        if name in text:
             return "player", pid
     words = set(WORD_RE.findall(text))
     for tid, name in snap.team_names.items():
@@ -59,6 +69,8 @@ def _team_candidates(snap: StatsSnapshot, tid: str, key: str) -> list[float]:
 def _player_candidates(snap: StatsSnapshot, pid: str, key: str) -> list[float]:
     if key not in PLAYER_STATS:
         return []
+    if pid not in snap.players:  # on the roster, no event yet: every statistic is zero
+        return [0.0]
     return _stat_values(snap.players[pid].model_dump(), key)
 
 
@@ -116,11 +128,18 @@ def _strict_pool(snap: StatsSnapshot, moments: Sequence[Moment]) -> list[float]:
 
 
 def check_citations(
-    citations: Sequence[Evidence], snap: StatsSnapshot, moments: Sequence[Moment]
+    citations: Sequence[Evidence],
+    snap: StatsSnapshot,
+    moments: Sequence[Moment],
+    meta: MatchMeta | None = None,
 ) -> list[str]:
-    """Return one issue per citation whose numbers the statistics do not support."""
+    """Return one issue per citation whose numbers the statistics do not support.
+
+    ``meta`` (the match's rosters) lets a value name a player who has no event yet.
+    """
     issues: list[str] = []
     pool: list[float] | None = None
+    roster = roster_of(meta)
     for citation in citations:
         numbers = _numbers(citation.value)
         if not numbers:
@@ -130,7 +149,8 @@ def check_citations(
         if key == "minute":
             ok = all(0 <= n <= snap.t / 60 + 1 for n in numbers)
         else:
-            candidates = _candidates(key, _qualifier(citation.value, snap), snap, moments)
+            qualifier = _qualifier(citation.value, snap, roster)
+            candidates = _candidates(key, qualifier, snap, moments)
             if not candidates:
                 pool = pool if pool is not None else _strict_pool(snap, moments)
                 candidates = pool

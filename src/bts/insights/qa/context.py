@@ -1,8 +1,8 @@
 """The live match as the question desk sees it: a protocol over the session and its tools.
 
-Every reader looks at the session's current state on each call (a snapshot is taken per
-call, never kept), so an answer during a running match reflects the clock on screen. Tools
-return compact JSON keyed by team and player names; ids never reach the model.
+A context is created per question over the session's current state, so an answer during a
+running match reflects the clock on screen. Tools return compact JSON keyed by team and
+player names; ids never reach the model.
 """
 
 from __future__ import annotations
@@ -83,19 +83,28 @@ def _moment_row(moment: Moment, snap: StatsSnapshot, *, facts: bool) -> dict[str
 
 
 class QAContext:
-    """Readers over one live match for one audience (profile and language)."""
+    """Readers over one live match for one audience (profile and language).
+
+    The statistics are pinned when the context is created (one question, one board) so the
+    tools, the match card and the citation check all see the same numbers while the match
+    moves on; ``refresh`` re-pins them. Events and moments are read live (they only append).
+    """
 
     def __init__(self, match: LiveMatch, profile: Profile, lang: Lang) -> None:
         self.match = match
         self.profile = profile
         self.lang = lang
+        self.snap: StatsSnapshot = match.snapshot()
         self._roster: dict[str, Player] = {
             p.name.lower(): p for t in (match.meta.home, match.meta.away) for p in t.players
         }
 
+    def refresh(self) -> None:
+        self.snap = self.match.snapshot()
+
     # ------------------------------------------------------------------ readers
     def match_card(self) -> dict[str, Any]:
-        snap = self.match.snapshot()
+        snap = self.snap
         meta = self.match.meta
         return {
             "clock": snap.clock,
@@ -111,10 +120,10 @@ class QAContext:
         return dump(card)
 
     def team_stats(self, team: str) -> str:
-        return dump(team_stats_payload(self.match.snapshot(), team))
+        return dump(team_stats_payload(self.snap, team))
 
     def player_stats(self, player: str) -> str:
-        snap = self.match.snapshot()
+        snap = self.snap
         found = self._roster.get(player.strip().lower())
         if found is None:
             hint = "use a player name from get_lineup, get_top_players or the events"
@@ -129,7 +138,7 @@ class QAContext:
         key = stat.strip().lower()
         if key not in PLAYER_STATS:
             return dump({"unknown_stat": stat, "stats": list(PLAYER_STATS)})
-        snap = self.match.snapshot()
+        snap = self.snap
         count = max(1, min(int(n), MAX_TOP))
         ranked = sorted(snap.players.values(), key=lambda p: getattr(p, key), reverse=True)
         rows = [
@@ -143,7 +152,7 @@ class QAContext:
         return dump({"stat": key, "players": rows})
 
     def lineup(self, team: str) -> str:
-        snap = self.match.snapshot()
+        snap = self.snap
         tid = team_id_for(snap, team)
         if tid is None:
             return dump({"unknown_team": team, "teams": team_names(snap)})
@@ -155,13 +164,13 @@ class QAContext:
         return dump({"team": snap.team_names[tid], "players": players})
 
     def last_five_minutes(self) -> str:
-        return dump(last_five_payload(self.match.snapshot()))
+        return dump(last_five_payload(self.snap))
 
     def momentum(self) -> str:
-        return dump(momentum_payload(self.match.snapshot()))
+        return dump(momentum_payload(self.snap))
 
     def moments(self) -> str:
-        snap = self.match.snapshot()
+        snap = self.snap
         return dump([_moment_row(m, snap, facts=True) for m in self.match.moments])
 
     def insight(self, moment_id: str) -> str:
@@ -176,7 +185,7 @@ class QAContext:
     def recent_events(self, n: int = MAX_EVENTS) -> str:
         count = max(1, min(int(n), MAX_EVENTS))
         events = list(self.match.events)[-count:]
-        return dump(events_summary(events, self.match.snapshot()))
+        return dump(events_summary(events, self.snap))
 
     def search_events(
         self,
@@ -186,7 +195,7 @@ class QAContext:
         from_minute: int = 0,
         to_minute: int = 999,
     ) -> str:
-        snap = self.match.snapshot()
+        snap = self.snap
         tid = pid = None
         if team.strip():
             tid = team_id_for(snap, team)

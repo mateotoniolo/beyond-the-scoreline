@@ -77,6 +77,28 @@ async def test_memory_keeps_six_messages_per_conversation(live):
     assert qa.history("another-match", first.conversation_id) == []
 
 
+async def test_citations_are_checked_against_the_board_the_question_saw(live):
+    qa = _qa()
+    snap = live.snapshot()
+    home = snap.team_names[snap.home_id]
+    cited = QAAnswer(
+        answer="Passes so far.",
+        citations=[Evidence(stat="passes", value=f"{home} {snap.teams[snap.home_id].passes}")],
+        confidence=0.9,
+        grounded=True,
+    )
+
+    async def run(agent, messages):
+        live.advance(300)  # the match moves on while the model answers
+        return cited, AgentStep(agent=agent.name, ms=2000, tool_calls=1)
+
+    qa._run = run
+    assert live.snapshot().teams[snap.home_id].passes == snap.teams[snap.home_id].passes
+    out = await qa.ask(live, "How many passes?", "analyst", "en")
+    assert live.snapshot().teams[snap.home_id].passes > snap.teams[snap.home_id].passes + 1
+    assert out.verified is True
+
+
 async def test_failed_citation_is_unverified_but_kept(live):
     qa = _qa()
     _script(qa, _answer(live, value="999.9"))

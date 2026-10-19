@@ -81,3 +81,17 @@ def test_values_without_numbers_are_ignored(live):
     snap = live.snapshot()
     ev = [Evidence(stat="goals", value="none yet"), Evidence(stat="xg", value="")]
     assert check_citations(ev, snap, live.moments) == []
+
+
+def test_roster_player_without_events_counts_as_zero(live):
+    snap = live.snapshot()
+    bench = next(
+        p
+        for t in (live.meta.home, live.meta.away)
+        for p in t.players
+        if p.player_id not in snap.players
+    )
+    zero = [Evidence(stat="passes", value=f"{bench.name} 0")]
+    assert check_citations(zero, snap, live.moments, live.meta) == []
+    some = [Evidence(stat="passes", value=f"{bench.name} 3")]
+    assert check_citations(some, snap, live.moments, live.meta)

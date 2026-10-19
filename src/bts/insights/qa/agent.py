@@ -94,7 +94,7 @@ class QAAgent:
                 source="template",
                 trace=[AgentStep(agent=QA_AGENT, ms=ms, ok=False)],
             )
-        issues = check_citations(answer.citations, match.snapshot(), match.moments)
+        issues = check_citations(answer.citations, ctx.snap, match.moments, match.meta)
         verified = answer.grounded and bool(answer.citations) and not issues
         if issues:
             log.info("qa citations rejected for %s: %s", key, issues)
