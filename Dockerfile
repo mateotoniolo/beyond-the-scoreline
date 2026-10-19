@@ -1,8 +1,12 @@
 # syntax=docker/dockerfile:1
-# Stage 1: build the web UI (populated in Task 12; empty until then)
+# Stage 1: build the web UI
 FROM node:22-alpine AS web
+RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /web
-RUN mkdir -p /web/dist
+COPY web/package.json web/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY web/ ./
+RUN pnpm build
 
 # Stage 2: Python runtime
 FROM python:3.12-slim AS app

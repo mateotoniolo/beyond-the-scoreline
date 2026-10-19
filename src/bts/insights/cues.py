@@ -32,7 +32,7 @@ def from_insight(insight: Insight, moment: Moment) -> list[Cue]:
         ),
     ]
     if insight.profile == "analyst" and insight.evidence:
-        text = "; ".join(f"{e.stat} {e.value}" for e in insight.evidence)
+        text = "; ".join(f"{e.stat.replace('_', ' ')} {e.value}" for e in insight.evidence)
         cues.append(
             Cue(
                 cue_id=f"{insight.insight_id}:ticker",

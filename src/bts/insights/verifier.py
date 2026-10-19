@@ -34,7 +34,11 @@ class VerifierOutput(BaseModel):
 def _known_numbers(snap: StatsSnapshot, moment: Moment) -> list[float]:
     values: list[float] = [float(snap.score[0]), float(snap.score[1]), snap.momentum]
     for stats in list(snap.teams.values()) + list(snap.last5.values()):
-        values.extend(float(v) for v in stats.model_dump().values() if isinstance(v, int | float))
+        values.extend(
+            float(v)
+            for k, v in stats.model_dump().items()
+            if isinstance(v, int | float) and k != "possession_seconds"
+        )
     values.extend(snap.pressure_index.values())
     if moment.player_id and moment.player_id in snap.players:
         ps = snap.players[moment.player_id]

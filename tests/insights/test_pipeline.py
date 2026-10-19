@@ -24,7 +24,10 @@ async def test_happy_path_is_verified(moment, snap, recent):
 
 async def test_bad_number_triggers_retry_then_template(moment, snap, recent):
     llm = FakeLLM(
-        [good(ev=[Evidence(stat="xg", value="9.9")]), good(ev=[Evidence(stat="xg", value="9.8")])]
+        [
+            good(ev=[Evidence(stat="xg", value="999.9")]),
+            good(ev=[Evidence(stat="xg", value="999.8")]),
+        ]
     )
     ins = await InsightService(llm).for_moment(moment, snap, recent, "analyst", "en")
     assert ins.source == "template" and ins.verified is False and len(llm.calls) == 2

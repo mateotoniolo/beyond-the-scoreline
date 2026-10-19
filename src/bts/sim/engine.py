@@ -370,10 +370,18 @@ class MatchSimulator:
         dx_m, dy_m = dist_m * math.cos(angle), dist_m * math.sin(angle)
         if subtype == "cross":
             dx_m, dy_m = rng.uniform(5, 15), (50 - ball.y) * PITCH_Y_M / 100 + rng.uniform(-8, 8)
-        end = Point(
-            x=_clip(ball.x + dx_m / PITCH_X_M * 100, 0, 99.5),
-            y=_clip(ball.y + dy_m / PITCH_Y_M * 100, 0.5, 99.5),
-        )
+        raw_x = ball.x + dx_m / PITCH_X_M * 100
+        raw_y = ball.y + dy_m / PITCH_Y_M * 100
+        out_of_play = raw_x > 100 or raw_y < 0 or raw_y > 100
+        if out_of_play and rng.random() < cfg.reaim_rate:
+            # Players rarely aim off the pitch: shorten the pass so it lands in play.
+            out_of_play = False
+            if raw_x > 100:
+                raw_x = rng.uniform(max(ball.x, 80), 97)
+            raw_y = (
+                rng.uniform(2, 20) if raw_y < 0 else rng.uniform(80, 98) if raw_y > 100 else raw_y
+            )
+        end = Point(x=_clip(raw_x, 0, 97.5), y=_clip(raw_y, 1.5, 98.5))
         dist_m = _metres(ball, end)
         forwardness = max(0.0, end.x - ball.x) / max(
             1e-6, abs(end.x - ball.x) + abs(end.y - ball.y)
@@ -406,7 +414,7 @@ class MatchSimulator:
         if ball.x < 200 / 3 <= end.x:
             tags.append("final_third_entry")
         self.t += rng.uniform(1.5, 4.0) + (1.0 if subtype == "long" else 0.0)
-        if rng.random() < p_success:
+        if not out_of_play and rng.random() < p_success:
             yield self._event(
                 side.team_id,
                 passer,
@@ -431,7 +439,7 @@ class MatchSimulator:
             tags=tags,
             meta=meta,
         )
-        roll = rng.random()
+        roll = 0.7 if out_of_play else rng.random()
         if roll < 0.55:
             defender = rng.choice(opp.outfield())
             yield self._event(opp.team_id, defender, "interception", end, outcome="success")
