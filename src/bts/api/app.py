@@ -1,4 +1,4 @@
-"""FastAPI application factory."""
+"""FastAPI application factory (serve with ``uvicorn --factory bts.api.app:create_app``)."""
 
 import logging
 from pathlib import Path
@@ -41,5 +41,3 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
     return app
 
-
-app = create_app()

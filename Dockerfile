@@ -18,4 +18,4 @@ COPY src ./src
 RUN uv sync --frozen --no-dev
 COPY --from=web /web/dist ./src/bts/static
 EXPOSE 8000
-CMD ["uv", "run", "--no-sync", "uvicorn", "bts.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "--no-sync", "uvicorn", "--factory", "bts.api.app:create_app", "--host", "0.0.0.0", "--port", "8000"]

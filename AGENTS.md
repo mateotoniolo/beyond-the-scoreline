@@ -16,7 +16,7 @@ Beyond the Scoreline: a synthetic match intelligence engine built for the Micros
 
 - `uv run pytest` runs the Python suite; `uv run ruff check . && uv run ruff format .` lints and formats.
 - `pnpm -C web typecheck && pnpm -C web test && pnpm -C web build` for the UI.
-- `uv run uvicorn bts.api.app:app --reload` serves the API on port 8000; `pnpm -C web dev` proxies `/api` to it.
+- `uv run uvicorn --factory bts.api.app:create_app --reload` serves the API on port 8000; `pnpm -C web dev` proxies `/api` to it.
 - `docker build -t bts:dev .` builds the deployable image.
 
 ## Rules

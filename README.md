@@ -35,7 +35,7 @@ Backend (Python 3.12, [uv](https://docs.astral.sh/uv/)):
 
 ```bash
 uv sync
-uv run uvicorn bts.api.app:app --reload
+uv run uvicorn --factory bts.api.app:create_app --reload
 ```
 
 Web UI (Node 22, pnpm), in a second terminal; it proxies `/api` to port 8000:

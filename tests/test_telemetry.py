@@ -1,5 +1,6 @@
 import sys
 
+import bts.telemetry as telemetry
 from bts.config import Settings
 from bts.telemetry import SERVICE_NAME, configure_telemetry
 
@@ -16,6 +17,7 @@ def test_telemetry_configures_when_set(monkeypatch):
     import azure.monitor.opentelemetry as azure_monitor
 
     calls: dict = {}
+    monkeypatch.setattr(telemetry, "_configured", False)
     monkeypatch.setattr(azure_monitor, "configure_azure_monitor", lambda **kw: calls.update(kw))
     monkeypatch.setattr(
         observability, "enable_instrumentation", lambda **kw: calls.update(instrumented=True)
