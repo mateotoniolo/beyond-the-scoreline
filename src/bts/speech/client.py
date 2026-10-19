@@ -4,7 +4,10 @@ Verified against the Microsoft Learn page "Text to speech REST API" (Speech serv
 https://<region>.tts.speech.microsoft.com/cognitiveservices/v1`` with the resource key in
 ``Ocp-Apim-Subscription-Key``, ``Content-Type: application/ssml+xml``, the output format in
 ``X-Microsoft-OutputFormat`` and a required ``User-Agent``. The native SDK is not needed for
-one request per clip, and httpx lets the tests stub the transport.
+one request per clip, and httpx lets the tests stub the transport. ``endpoint`` overrides the
+regional URL for a resource with a custom domain or a private endpoint
+(``https://<resource>.cognitiveservices.azure.com/tts/cognitiveservices/v1``), which is also the
+form an Azure AI Services (Foundry) resource answers on.
 """
 
 from __future__ import annotations
@@ -27,10 +30,11 @@ class SpeechClient:
         key: str,
         region: str,
         *,
+        endpoint: str | None = None,
         timeout_s: float = DEFAULT_TIMEOUT_S,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
-        self.url = TTS_URL.format(region=region)
+        self.url = endpoint or TTS_URL.format(region=region)
         self.timeout_s = timeout_s
         self._http = httpx.AsyncClient(
             transport=transport,

@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # Azure AI Speech (narration); unset BTS_SPEECH_ENABLED = on whenever key and region are set.
     speech_key: str | None = None
     speech_region: str | None = None
+    # Optional: the resource's own TTS URL (custom domain, private endpoint or an AI Services
+    # resource), e.g. https://<resource>.cognitiveservices.azure.com/tts/cognitiveservices/v1
+    speech_endpoint: str | None = None
     speech_enabled: bool | None = None
     cosmos_endpoint: str | None = None
     cosmos_key: str | None = None

@@ -28,5 +28,8 @@ def make_narrator(settings: Settings) -> Narrator | None:
     if not (settings.speech_key and settings.speech_region):
         log.warning("narration: needs BTS_SPEECH_KEY and BTS_SPEECH_REGION; off")
         return None
-    log.info("narration: Azure AI Speech in %s", settings.speech_region)
-    return Narrator(SpeechClient(settings.speech_key, settings.speech_region))
+    client = SpeechClient(
+        settings.speech_key, settings.speech_region, endpoint=settings.speech_endpoint
+    )
+    log.info("narration: Azure AI Speech at %s", client.url)
+    return Narrator(client)

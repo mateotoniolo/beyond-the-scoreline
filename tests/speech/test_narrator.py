@@ -61,3 +61,11 @@ def test_make_narrator_follows_the_flag():
     off = Settings(_env_file=None, speech_key="k", speech_region="eastus2", speech_enabled=False)
     assert make_narrator(off) is None
     assert make_narrator(Settings(_env_file=None, speech_enabled=True)) is None  # no key: off
+
+
+def test_make_narrator_passes_the_endpoint_override():
+    custom = "https://my-resource.cognitiveservices.azure.com/tts/cognitiveservices/v1"
+    narrator = make_narrator(
+        Settings(_env_file=None, speech_key="k", speech_region="eastus2", speech_endpoint=custom)
+    )
+    assert narrator is not None and narrator.client.url == custom

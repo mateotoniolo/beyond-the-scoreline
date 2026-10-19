@@ -54,3 +54,17 @@ async def test_transport_error_raises_speech_error():
 async def test_empty_body_raises_speech_error():
     with pytest.raises(SpeechError, match="empty"):
         await _client(lambda r: httpx.Response(200, content=b"")).synthesize("<speak/>")
+
+
+async def test_endpoint_override_replaces_the_regional_url():
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        return httpx.Response(200, content=b"ID3")
+
+    custom = "https://my-resource.cognitiveservices.azure.com/tts/cognitiveservices/v1"
+    client = SpeechClient("k3y", "eastus2", endpoint=custom, transport=httpx.MockTransport(handler))
+    assert client.url == custom
+    await client.synthesize("<speak/>")
+    assert seen["url"] == custom
