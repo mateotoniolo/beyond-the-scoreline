@@ -35,12 +35,44 @@ async def test_non_200_raises_speech_error_with_status():
         await _client(lambda r: httpx.Response(401, text="Access denied")).synthesize("<speak/>")
 
 
-async def test_timeout_raises_speech_error():
+async def test_timeout_is_retried_once_then_raises_speech_error():
+    calls = 0
+
     def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
         raise httpx.ReadTimeout("slow")
 
     with pytest.raises(SpeechError, match="timed out after 10 s"):
         await _client(handler).synthesize("<speak/>")
+    assert calls == 2
+
+
+async def test_one_timeout_is_recovered_by_the_retry():
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise httpx.ReadTimeout("slow")
+        return httpx.Response(200, content=b"ID3late")
+
+    assert await _client(handler).synthesize("<speak/>") == b"ID3late"
+    assert calls == 2
+
+
+async def test_other_failures_are_not_retried():
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(429, text="busy")
+
+    with pytest.raises(SpeechError, match="429"):
+        await _client(handler).synthesize("<speak/>")
+    assert calls == 1
 
 
 async def test_transport_error_raises_speech_error():

@@ -48,12 +48,18 @@ class SpeechClient:
         )
 
     async def synthesize(self, ssml: str) -> bytes:
-        try:
-            response = await self._http.post(self.url, content=ssml.encode())
-        except httpx.TimeoutException as exc:
-            raise SpeechError(f"speech request timed out after {self.timeout_s:g} s") from exc
-        except httpx.HTTPError as exc:
-            raise SpeechError(f"speech request failed: {exc}") from exc
+        """One request, retried once on a timeout (the service stalls now and then)."""
+        for attempt in range(2):
+            try:
+                response = await self._http.post(self.url, content=ssml.encode())
+                break
+            except httpx.TimeoutException as exc:
+                if attempt == 1:
+                    raise SpeechError(
+                        f"speech request timed out after {self.timeout_s:g} s"
+                    ) from exc
+            except httpx.HTTPError as exc:
+                raise SpeechError(f"speech request failed: {exc}") from exc
         if response.status_code != 200:
             raise SpeechError(f"speech {response.status_code}: {response.text[:200]}")
         if not response.content:

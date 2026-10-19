@@ -13,7 +13,7 @@ from bts.speech.ssml import build_ssml, insight_parts, recap_parts
 
 log = logging.getLogger(__name__)
 
-CACHE_MAX = 512  # clips; a 15 s clip at 48 kbps is about 90 KB
+CACHE_MAX = 512  # clips; a 240-character insight is about 120 KB of MP3 at 48 kbps
 
 
 class Synthesizer(Protocol):

@@ -13,7 +13,9 @@ pytestmark = pytest.mark.skipif(
 
 
 async def test_live_synthesis_returns_mp3():
-    client = SpeechClient(settings.speech_key or "", settings.speech_region or "")
+    client = SpeechClient(
+        settings.speech_key or "", settings.speech_region or "", endpoint=settings.speech_endpoint
+    )
     try:
         audio = await client.synthesize(build_ssml(["Narration check."], "en", "analyst"))
     finally:
