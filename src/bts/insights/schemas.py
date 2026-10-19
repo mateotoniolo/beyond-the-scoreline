@@ -24,8 +24,8 @@ class Insight(BaseModel):
     moment_id: str
     profile: Profile
     lang: Lang
-    headline: str = Field(max_length=HEADLINE_MAX)
-    why_it_matters: str = Field(max_length=WHY_MAX["analyst"])
+    headline: str
+    why_it_matters: str
     evidence: list[Evidence] = Field(default_factory=list)
     confidence: float = Field(ge=0, le=1)
     verified: bool
