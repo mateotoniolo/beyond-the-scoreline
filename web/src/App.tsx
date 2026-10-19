@@ -124,8 +124,8 @@ export default function App() {
             <h1>Every pass has a story. We tell it, then we check it.</h1>
             <p>
               A seeded generator plays a football-realistic match. A deterministic layer turns events into statistics and momentum.
-              A Microsoft Foundry model explains why each moment matters, a verifier checks every number, and the result reaches the screen as timed overlays,
-              tuned for analysts or fans, in English or Spanish.
+              A crew of Microsoft Agent Framework agents on a Foundry model, a tactical analyst, a narrator and a fact checker, explains why each moment matters;
+              a producer re-checks every number, and the result reaches the screen as timed overlays, tuned for analysts or fans, in English or Spanish.
             </p>
             <p className="intro__hint">Seed 11 at 30× is a good first match. Clubs and players are fictional.</p>
           </section>
@@ -134,6 +134,7 @@ export default function App() {
       <footer className="footer">
         <span>Built on</span>
         <span className="chip">Microsoft Foundry</span>
+        <span className="chip">Microsoft Agent Framework</span>
         <span className="chip">Azure Container Apps</span>
         <span className="chip">Azure Cosmos DB</span>
         <span className="footer__note">Synthetic data only. No real clubs, players or matches.</span>

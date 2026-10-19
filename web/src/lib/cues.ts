@@ -21,3 +21,18 @@ export function activeCues(cues: Cue[], clockSeconds: number, speed = 1): Cue[] 
     return cue ? [cue] : [];
   });
 }
+
+/**
+ * Upserts incoming cues by `cue_id`. A new cue is anchored at `clock` (shown from the moment it
+ * arrives, so model latency never hides it); a replaced cue, such as one the producer cut short,
+ * keeps the anchor it already had.
+ */
+export function mergeCues(existing: Cue[], incoming: Cue[], clock: number): Cue[] {
+  const next = existing.slice();
+  for (const cue of incoming) {
+    const index = next.findIndex((c) => c.cue_id === cue.cue_id);
+    if (index === -1) next.push({ ...cue, shown_from: clock });
+    else next[index] = { ...cue, shown_from: next[index].shown_from ?? clock };
+  }
+  return next;
+}

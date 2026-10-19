@@ -1,3 +1,4 @@
+import { formatTrace } from "../lib/trace";
 import type { Insight, Lang, MatchMeta, Moment } from "../types";
 
 interface Props {
@@ -29,7 +30,9 @@ export function InsightFeed({ insights, moments, meta, lang, favorite }: Props) 
                 <span className="insight__clock">{m!.clock}</span>
                 <span className="insight__type">{m!.type.replace("_", " ")}</span>
                 {i.verified ? <span className="badge badge--verified">verified</span> : null}
-                <span className={`badge badge--source`}>{i.source === "llm" ? "Foundry" : "template"}</span>
+                <span className={`badge badge--source`}>
+                  {i.source !== "llm" ? "template" : i.trace.length ? "Agent crew" : "Foundry"}
+                </span>
               </header>
               <h3>{i.headline}</h3>
               <p>{i.why_it_matters}</p>
@@ -41,6 +44,20 @@ export function InsightFeed({ insights, moments, meta, lang, favorite }: Props) 
                     </li>
                   ))}
                 </ul>
+              ) : null}
+              {i.trace.length ? (
+                <ol className="trace" aria-label={lang === "en" ? "Agent timeline" : "Línea de agentes"}>
+                  {formatTrace(i.trace, lang).map((label, idx) => (
+                    <li
+                      key={`${i.trace[idx].agent}-${idx}`}
+                      className={`trace__step trace__step--${i.trace[idx].agent}`}
+                      style={{ flexGrow: Math.max(i.trace[idx].ms, 200) }}
+                      title={label}
+                    >
+                      {label}
+                    </li>
+                  ))}
+                </ol>
               ) : null}
             </li>
           );

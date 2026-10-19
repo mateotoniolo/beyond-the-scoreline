@@ -138,6 +138,14 @@ export interface Evidence {
   value: string;
 }
 
+/** One crew member's turn while producing an insight. */
+export interface AgentStep {
+  agent: string;
+  ms: number;
+  tool_calls: number;
+  ok: boolean;
+}
+
 export interface Insight {
   insight_id: string;
   moment_id: string;
@@ -149,6 +157,8 @@ export interface Insight {
   confidence: number;
   verified: boolean;
   source: "llm" | "template";
+  /** Empty for templates; the agent crew lists analyst, narrator, fact checker and producer. */
+  trace: AgentStep[];
 }
 
 export interface Recap {

@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { activeCues } from "./cues";
+import { activeCues, mergeCues } from "./cues";
 import type { Cue } from "../types";
 
 const cue = (id: string, layer: Cue["layer"], t: number, d: number): Cue => ({
@@ -35,4 +35,13 @@ test("a cue that arrives late is shown from its arrival clock, not from t_start"
   expect(activeCues([late], 100, 30)).toEqual([]);
   expect(activeCues([late], 401, 30).map((c) => c.cue_id)).toEqual(["a"]);
   expect(activeCues([late], 400 + 8 * 30 + 1, 30)).toEqual([]);
+});
+
+test("mergeCues anchors new cues at the current clock and keeps the anchor of replaced ones", () => {
+  const first = mergeCues([], [cue("a", "lower_third", 10, 8)], 50);
+  expect(first[0].shown_from).toBe(50);
+  const cut = mergeCues(first, [cue("a", "lower_third", 10, 3), cue("b", "lower_third", 60, 8)], 70);
+  expect(cut.find((c) => c.cue_id === "a")).toMatchObject({ duration_s: 3, shown_from: 50 });
+  expect(cut.find((c) => c.cue_id === "b")?.shown_from).toBe(70);
+  expect(cut).toHaveLength(2);
 });

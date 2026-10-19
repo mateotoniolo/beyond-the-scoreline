@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getCues, getInsights, streamUrl } from "../api";
+import { mergeCues } from "../lib/cues";
 import type { Cue, Insight, Lang, MatchEvent, MatchInfo, Moment, Profile, StatsSnapshot } from "../types";
 
 const MAX_EVENTS = 60;
@@ -76,13 +77,7 @@ export function useMatchStream(matchId: string | null, profile: Profile, lang: L
     on<Insight>("insight", (insight) =>
       setState((s) => ({ ...s, insights: upsert(s.insights, insight, "insight_id") })),
     );
-    on<Cue[]>("cues", (cues) =>
-      setState((s) => ({
-        ...s,
-        // Live cues are shown from the moment they arrive, so model latency never hides them.
-        cues: cues.reduce((acc, c) => upsert(acc, { ...c, shown_from: s.clock }, "cue_id"), s.cues),
-      })),
-    );
+    on<Cue[]>("cues", (cues) => setState((s) => ({ ...s, cues: mergeCues(s.cues, cues, s.clock) })));
     source.onerror = () => {
       setState((s) => {
         if (s.status === "finished") source.close();

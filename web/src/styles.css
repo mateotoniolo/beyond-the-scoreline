@@ -208,6 +208,14 @@ button, input, select { font: inherit; color: inherit; }
 .recap p { font-size: 15px; }
 .recap ol { padding-left: 20px; color: var(--mist); }
 
+/* ---------------------------------------------------------------- agent trace */
+.trace { list-style: none; display: flex; gap: 3px; margin: 7px 0 0; padding: 0; }
+.trace__step { flex: 1 1 0; min-width: 0; font-size: 11px; line-height: 1.2; color: var(--mist); padding-top: 4px; border-top: 2px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.trace__step--tactical_analyst { border-top-color: var(--floodlight); }
+.trace__step--narrator { border-top-color: var(--chalk); }
+.trace__step--fact_checker { border-top-color: var(--team); }
+.trace__step--producer { border-top-color: var(--mist); }
+
 /* ---------------------------------------------------------------- footer */
 .footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--mist); font-size: 12px; border-top: 1px solid var(--line); padding-top: 6px; }
 .chip { border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; color: var(--chalk); }
