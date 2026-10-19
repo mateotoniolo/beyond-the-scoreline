@@ -1,3 +1,4 @@
+import { LABELS } from "../lib/narration";
 import type { Lang, Profile, TeamSummary } from "../types";
 
 export interface Setup {
@@ -19,6 +20,10 @@ interface Props {
   onLang: (l: Lang) => void;
   favorite: string | null;
   onFavorite: (t: string | null) => void;
+  /** Azure AI Speech narration: the switch exists only when the deployment serves audio. */
+  narrationAvailable: boolean;
+  narration: boolean;
+  onNarration: (on: boolean) => void;
 }
 
 const SPEEDS = [1, 2, 5, 10, 30, 60, 600];
@@ -106,6 +111,18 @@ export function Controls(p: Props) {
           })}
         </select>
       </label>
+      {p.narrationAvailable ? (
+        <button
+          type="button"
+          className="toggle"
+          role="switch"
+          aria-checked={p.narration}
+          onClick={() => p.onNarration(!p.narration)}
+        >
+          <span className="toggle__dot" aria-hidden="true" />
+          {LABELS[p.lang].toggle}
+        </button>
+      ) : null}
     </form>
   );
 }

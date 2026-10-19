@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createMatch, getFeatures, getProfile, getRecap, getTeams, putProfile } from "./api";
+import { createMatch, getFeatures, getProfile, getRecap, getTeams, putProfile, recapAudioUrl } from "./api";
 import { AskPanel } from "./components/AskPanel";
 import { Controls, type Setup } from "./components/Controls";
 import { EventFeed } from "./components/EventFeed";
@@ -10,6 +10,7 @@ import { RecapDialog } from "./components/RecapDialog";
 import { Scoreboard } from "./components/Scoreboard";
 import { StatsPanel } from "./components/StatsPanel";
 import { useMatchStream } from "./hooks/useMatchStream";
+import { useNarration } from "./hooks/useNarration";
 import { activeCues } from "./lib/cues";
 import type { Features, Lang, MatchInfo, Profile, Recap, TeamSummary } from "./types";
 
@@ -29,7 +30,7 @@ function userId(): string {
 
 export default function App() {
   const [teams, setTeams] = useState<TeamSummary[]>([]);
-  const [features, setFeatures] = useState<Features>({ ask_the_match: false });
+  const [features, setFeatures] = useState<Features>({ ask_the_match: false, narration: false });
   const [uid] = useState(userId);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [setup, setSetup] = useState<Setup>({ seed: 11, home: "t1", away: "t2", speed: 30 });
@@ -72,6 +73,7 @@ export default function App() {
     () => new Set(stream.insights.filter((i) => i.verified).map((i) => i.moment_id)),
     [stream.insights],
   );
+  const narration = useNarration(info?.match_id ?? null, stream.insights, profile, lang, features.narration);
 
   useEffect(() => {
     if (!info || stream.status !== "finished" || recapSeen === info.match_id) return;
@@ -82,6 +84,7 @@ export default function App() {
   const play = async () => {
     setError(null);
     setRecap(null);
+    if (narration.enabled) narration.unlock(); // inside the click, so the clips may start later
     try {
       setInfo(await createMatch(setup));
     } catch (e) {
@@ -105,6 +108,9 @@ export default function App() {
           onLang={setLang}
           favorite={favorite}
           onFavorite={setFavorite}
+          narrationAvailable={features.narration}
+          narration={narration.enabled}
+          onNarration={narration.setEnabled}
         />
       </header>
       {error ? <p className="error" role="alert">{error}</p> : null}
@@ -143,9 +149,16 @@ export default function App() {
         <span className="chip">Microsoft Agent Framework</span>
         <span className="chip">Azure Container Apps</span>
         <span className="chip">Azure Cosmos DB</span>
+        {features.narration ? <span className="chip">Azure AI Speech</span> : null}
         <span className="footer__note">Synthetic data only. No real clubs, players or matches.</span>
       </footer>
-      <RecapDialog recap={recap} onClose={() => setRecap(null)} />
+      <RecapDialog
+        recap={recap}
+        onClose={() => setRecap(null)}
+        lang={lang}
+        audioUrl={features.narration && info ? recapAudioUrl(info.match_id, profile, lang) : null}
+        onListen={narration.stop}
+      />
     </div>
   );
 }

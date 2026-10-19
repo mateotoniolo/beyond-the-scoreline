@@ -186,6 +186,8 @@ export interface Cue {
 /** Optional features this deployment serves (`GET /api/features`). */
 export interface Features {
   ask_the_match: boolean;
+  /** Azure AI Speech narration: audio endpoints are live and the switch is shown. */
+  narration: boolean;
 }
 
 export interface AskRequest {

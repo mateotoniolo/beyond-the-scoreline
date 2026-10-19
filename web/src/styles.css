@@ -101,6 +101,13 @@ button, input, select { font: inherit; color: inherit; }
 .segmented button + button { border-left: 1px solid var(--line); }
 .segmented button[aria-pressed="true"] { background: var(--chalk); color: var(--night); }
 
+/* Narration switch: the live-dot idiom, mist off and floodlight on. */
+.toggle { display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px 5px 9px; cursor: pointer; color: var(--mist); font-family: var(--display); font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+.toggle__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mist); transition: background 200ms ease, box-shadow 200ms ease; }
+.toggle:hover { color: var(--chalk); }
+.toggle[aria-checked="true"] { color: var(--chalk); border-color: var(--chalk); }
+.toggle[aria-checked="true"] .toggle__dot { background: var(--floodlight); box-shadow: 0 0 0 3px rgba(245, 185, 66, 0.22); }
+
 .error { margin: 0; color: var(--danger); }
 
 /* ---------------------------------------------------------------- main grid */
@@ -208,6 +215,9 @@ button, input, select { font: inherit; color: inherit; }
 .recap h2 { font-size: 30px; color: var(--chalk); font-weight: 700; }
 .recap p { font-size: 15px; }
 .recap ol { padding-left: 20px; color: var(--mist); }
+.recap__actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.recap__actions .button[aria-pressed="true"] { border-color: var(--floodlight); color: var(--floodlight); }
+.recap__note { color: var(--mist); font-size: 12px; margin-right: auto; }
 
 /* ---------------------------------------------------------------- agent trace */
 .trace { list-style: none; display: flex; gap: 3px; margin: 7px 0 0; padding: 0; }

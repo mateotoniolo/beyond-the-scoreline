@@ -15,3 +15,5 @@ Type: Barlow Condensed for scoreboard, lower third and headings (broadcast numer
 Layout: top bar with scoreboard and controls; program monitor (pitch + overlays) left, stats and insights rail right, event feed under the monitor. Structural lines are chalk hairlines like pitch markings, no card shadows. Left-aligned text; the scoreboard is the only centred element.
 
 Ask the match (bottom of the rail): a question desk, not a chat. One input line with the heading as its label, suggested questions as quiet chips, and the last three exchanges as left-ruled rows (question in mist, answer in chalk, citation chips, a status badge and the agent step). The desk yields its log before the insight feed drops under its heading, so the rail still fits 720 px.
+
+Narration (controls, far right): a pill switch with the live-dot idiom, mist when off and floodlight when on, labelled "Narration" or "Narración"; it exists only when the deployment serves audio. The recap dialog gets a "Listen" button beside "Close" that turns into "Stop" while the clip plays. No waveform, no player chrome: the voice is the feature.

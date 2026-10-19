@@ -55,6 +55,13 @@ export const getCues = (id: string, profile: Profile, lang: Lang) =>
 export const getRecap = (id: string, profile: Profile, lang: Lang) =>
   json<Recap>(`/api/matches/${id}/recap?${variant(profile, lang)}`);
 
+/** MP3 of a moment's insight; 404 until that variant of the insight exists. */
+export const insightAudioUrl = (id: string, momentId: string, profile: Profile, lang: Lang) =>
+  `/api/matches/${id}/insights/${momentId}/audio?${variant(profile, lang)}`;
+
+export const recapAudioUrl = (id: string, profile: Profile, lang: Lang) =>
+  `/api/matches/${id}/recap/audio?${variant(profile, lang)}`;
+
 export const ask = (id: string, body: AskRequest) =>
   json<AskResult>(`/api/matches/${id}/ask`, {
     method: "POST",
