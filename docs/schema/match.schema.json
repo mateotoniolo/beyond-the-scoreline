@@ -1,0 +1,392 @@
+{
+  "$defs": {
+    "Event": {
+      "properties": {
+        "event_id": {
+          "title": "Event Id",
+          "type": "integer"
+        },
+        "match_id": {
+          "title": "Match Id",
+          "type": "string"
+        },
+        "period": {
+          "enum": [
+            1,
+            2
+          ],
+          "title": "Period",
+          "type": "integer"
+        },
+        "t": {
+          "description": "Seconds since kick-off of the match",
+          "minimum": 0,
+          "title": "T",
+          "type": "number"
+        },
+        "clock": {
+          "title": "Clock",
+          "type": "string"
+        },
+        "team_id": {
+          "title": "Team Id",
+          "type": "string"
+        },
+        "player_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Player Id"
+        },
+        "type": {
+          "enum": [
+            "pass",
+            "carry",
+            "shot",
+            "duel",
+            "interception",
+            "clearance",
+            "recovery",
+            "miscontrol",
+            "ball_out",
+            "foul",
+            "goalkeeper",
+            "pressure",
+            "substitution",
+            "card",
+            "period_start",
+            "period_end"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "subtype": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subtype"
+        },
+        "start": {
+          "$ref": "#/$defs/Point"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Point"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "enum": [
+                "success",
+                "fail",
+                "goal",
+                "saved",
+                "blocked",
+                "off_target"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outcome"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "array"
+        },
+        "meta": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "title": "Meta",
+          "type": "object"
+        }
+      },
+      "required": [
+        "event_id",
+        "match_id",
+        "period",
+        "t",
+        "clock",
+        "team_id",
+        "type",
+        "start"
+      ],
+      "title": "Event",
+      "type": "object"
+    },
+    "MatchMeta": {
+      "properties": {
+        "match_id": {
+          "title": "Match Id",
+          "type": "string"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "home": {
+          "$ref": "#/$defs/Team"
+        },
+        "away": {
+          "$ref": "#/$defs/Team"
+        },
+        "venue": {
+          "title": "Venue",
+          "type": "string"
+        },
+        "competition": {
+          "default": "Synthetic League",
+          "title": "Competition",
+          "type": "string"
+        }
+      },
+      "required": [
+        "match_id",
+        "seed",
+        "home",
+        "away",
+        "venue"
+      ],
+      "title": "MatchMeta",
+      "type": "object"
+    },
+    "Player": {
+      "properties": {
+        "player_id": {
+          "title": "Player Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "team_id": {
+          "title": "Team Id",
+          "type": "string"
+        },
+        "position": {
+          "enum": [
+            "GK",
+            "DF",
+            "MF",
+            "FW"
+          ],
+          "title": "Position",
+          "type": "string"
+        },
+        "shirt": {
+          "minimum": 1,
+          "title": "Shirt",
+          "type": "integer"
+        },
+        "attrs": {
+          "$ref": "#/$defs/PlayerAttrs"
+        }
+      },
+      "required": [
+        "player_id",
+        "name",
+        "team_id",
+        "position",
+        "shirt",
+        "attrs"
+      ],
+      "title": "Player",
+      "type": "object"
+    },
+    "PlayerAttrs": {
+      "properties": {
+        "passing": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Passing",
+          "type": "number"
+        },
+        "shooting": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Shooting",
+          "type": "number"
+        },
+        "pace": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Pace",
+          "type": "number"
+        },
+        "pressing": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Pressing",
+          "type": "number"
+        },
+        "aerial": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Aerial",
+          "type": "number"
+        }
+      },
+      "required": [
+        "passing",
+        "shooting",
+        "pace",
+        "pressing",
+        "aerial"
+      ],
+      "title": "PlayerAttrs",
+      "type": "object"
+    },
+    "Point": {
+      "properties": {
+        "x": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "Point",
+      "type": "object"
+    },
+    "Team": {
+      "properties": {
+        "team_id": {
+          "title": "Team Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "short_name": {
+          "title": "Short Name",
+          "type": "string"
+        },
+        "colors": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Colors",
+          "type": "array"
+        },
+        "style": {
+          "enum": [
+            "possession",
+            "direct",
+            "pressing",
+            "counter"
+          ],
+          "title": "Style",
+          "type": "string"
+        },
+        "players": {
+          "items": {
+            "$ref": "#/$defs/Player"
+          },
+          "title": "Players",
+          "type": "array"
+        }
+      },
+      "required": [
+        "team_id",
+        "name",
+        "short_name",
+        "colors",
+        "style",
+        "players"
+      ],
+      "title": "Team",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "meta": {
+      "$ref": "#/$defs/MatchMeta"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/Event"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "score": {
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "integer"
+        }
+      ],
+      "title": "Score",
+      "type": "array"
+    }
+  },
+  "required": [
+    "meta",
+    "events",
+    "score"
+  ],
+  "title": "Match",
+  "type": "object"
+}
