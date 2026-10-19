@@ -60,3 +60,32 @@ async def test_incomplete_response_raises_llm_error_with_reason(monkeypatch):
     monkeypatch.setattr(client._client, "with_options", lambda **kw: _Scoped())
     with pytest.raises(LLMError, match="max_output_tokens"):
         await client.complete_json(system="s", user="u", schema=ExplainerOutput)
+
+
+def _live_settings(**overrides) -> Settings:
+    base = {"foundry_endpoint": "https://x.openai.azure.com/openai/v1/", "foundry_api_key": "k"}
+    return Settings(_env_file=None, **{**base, **overrides})
+
+
+def test_make_crew_is_none_without_endpoint(monkeypatch):
+    from bts.insights.foundry import make_crew
+
+    monkeypatch.delenv("BTS_FOUNDRY_ENDPOINT", raising=False)
+    assert make_crew(Settings(_env_file=None)) is None
+
+
+def test_make_crew_defaults_to_crew_mode_with_a_key():
+    from bts.insights.crew.crew import AgentCrew
+    from bts.insights.foundry import make_crew
+
+    factory = make_crew(_live_settings())
+    assert factory is not None
+    a, b = factory(), factory()
+    assert isinstance(a, AgentCrew) and a is not b and a.client is b.client
+
+
+def test_make_crew_respects_simple_mode_and_missing_key():
+    from bts.insights.foundry import make_crew
+
+    assert make_crew(_live_settings(agent_mode="simple")) is None
+    assert make_crew(_live_settings(foundry_api_key=None, agent_mode="crew")) is None

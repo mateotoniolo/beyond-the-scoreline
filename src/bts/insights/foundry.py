@@ -9,7 +9,8 @@ and ``responses.parse(..., text_format=PydanticModel)`` returning ``output_parse
 from __future__ import annotations
 
 import logging
-from typing import TypeVar
+from collections.abc import Callable
+from typing import TYPE_CHECKING, TypeVar
 
 from openai import APIError, AsyncOpenAI
 from pydantic import BaseModel, ValidationError
@@ -17,8 +18,12 @@ from pydantic import BaseModel, ValidationError
 from bts.config import Settings
 from bts.insights.llm import FakeLLM, LLMClient, LLMError
 
+if TYPE_CHECKING:
+    from bts.insights.crew.crew import AgentCrew
+
 log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
+CrewFactory = Callable[[], "AgentCrew"]
 ENTRA_SCOPE = "https://ai.azure.com/.default"
 # Reasoning tokens are billed inside max_output_tokens on gpt-5 models: an 800-token cap
 # truncated most JSON replies in testing, so the cap is generous and reasoning is minimal.
@@ -78,3 +83,24 @@ def make_llm(settings: Settings) -> LLMClient:
         return FoundryClient(settings)
     log.warning("LLM: no BTS_FOUNDRY_ENDPOINT set; insights will use templates only")
     return FakeLLM([])
+
+
+def make_crew(settings: Settings) -> CrewFactory | None:
+    """A per-session crew factory sharing one chat client, or None for the simple pipeline.
+
+    ``BTS_AGENT_MODE`` decides; unset, the crew is on whenever a model endpoint exists.
+    """
+    mode = settings.agent_mode or ("crew" if settings.foundry_endpoint else "simple")
+    if mode != "crew":
+        log.info("agents: simple pipeline (BTS_AGENT_MODE=%s)", mode)
+        return None
+    if not settings.foundry_endpoint or not settings.foundry_api_key:
+        log.warning("agents: the crew needs BTS_FOUNDRY_ENDPOINT and an API key; simple pipeline")
+        return None
+    from bts.insights.crew.agents import make_chat_client
+    from bts.insights.crew.crew import AgentCrew
+
+    client = make_chat_client(settings)
+    model = settings.foundry_model
+    log.info("agents: Microsoft Agent Framework crew on %s", model)
+    return lambda: AgentCrew(client, model)

@@ -11,7 +11,8 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from bts.api.schemas import CreateMatch, MatchInfo
-from bts.insights.cues import from_insight
+from bts.insights.crew.producer import plan_cues
+from bts.insights.foundry import CrewFactory
 from bts.insights.llm import LLMClient
 from bts.insights.pipeline import InsightService
 from bts.insights.schemas import Cue, Insight, Lang, Profile, Recap
@@ -37,14 +38,17 @@ class Message(BaseModel):
 
 
 class MatchSession:
-    def __init__(self, req: CreateMatch, llm: LLMClient) -> None:
+    def __init__(
+        self, req: CreateMatch, llm: LLMClient, crew_factory: CrewFactory | None = None
+    ) -> None:
         teams = {t.team_id: t for t in build_league(req.seed)}
         self.sim = MatchSimulator(req.seed, teams[req.home], teams[req.away])
         self.match_id = f"{req.seed}-{secrets.token_hex(3)}"
         self.state = MatchState(self.sim.meta)
         self.detector = KeyMomentDetector()
         # One cache per match: moment ids restart at 1 for every match.
-        self.insights = InsightService(llm)
+        self.insights = InsightService(llm, crew_factory() if crew_factory else None)
+        self._cues: dict[tuple[Profile, Lang], list[Cue]] = {}
         self.speed = req.speed
         self.status: Literal["running", "finished"] = "running"
         self.events: list[Event] = []
@@ -115,7 +119,26 @@ class MatchSession:
     async def _produce_insight(self, moment: Moment, profile: Profile, lang: Lang) -> None:
         insight = await self.insight_for(moment, profile, lang)
         self._publish("insight", insight, only=(profile, lang))
-        self._publish("cues", from_insight(insight, moment), only=(profile, lang))
+        self._publish(
+            "cues", self._plan_cues(insight, moment, (profile, lang)), only=(profile, lang)
+        )
+
+    def _plan_cues(
+        self, insight: Insight, moment: Moment, variant: tuple[Profile, Lang]
+    ) -> list[Cue]:
+        """Plan the moment's cues against this variant's history; cut cues replace by id."""
+        history = self._cues.setdefault(variant, [])
+        if any(c.moment_id == moment.moment_id for c in history):
+            return [c for c in history if c.moment_id == moment.moment_id]
+        planned = plan_cues(insight, moment, history, self.speed)
+        index = {c.cue_id: i for i, c in enumerate(history)}
+        for cue in planned:
+            if cue.cue_id in index:
+                history[index[cue.cue_id]] = cue
+            else:
+                index[cue.cue_id] = len(history)
+                history.append(cue)
+        return planned
 
     # ------------------------------------------------------------------ pub/sub
     def _publish(
@@ -178,12 +201,10 @@ class MatchSession:
         return out
 
     async def cues_for(self, profile: Profile, lang: Lang) -> list[Cue]:
-        cues: list[Cue] = []
-        for moment, insight in zip(
-            self.moments, await self.insights_for(profile, lang), strict=True
-        ):
-            cues.extend(from_insight(insight, moment))
-        return cues
+        insights = await self.insights_for(profile, lang)
+        for moment, insight in zip(self.moments, insights, strict=True):
+            self._plan_cues(insight, moment, (profile, lang))
+        return list(self._cues.get((profile, lang), []))
 
     async def recap(self, profile: Profile, lang: Lang) -> Recap:
         key = (profile, lang)
@@ -199,8 +220,15 @@ class SessionManager:
     class Full(Exception):
         """Raised when every slot holds a running match."""
 
-    def __init__(self, llm: LLMClient, max_sessions: int = MAX_SESSIONS) -> None:
+    def __init__(
+        self,
+        llm: LLMClient,
+        *,
+        crew_factory: CrewFactory | None = None,
+        max_sessions: int = MAX_SESSIONS,
+    ) -> None:
         self.llm = llm
+        self.crew_factory = crew_factory
         self.max_sessions = max_sessions
         self._sessions: dict[str, MatchSession] = {}
 
@@ -211,7 +239,7 @@ class SessionManager:
                 raise SessionManager.Full()
             finished.close()
             del self._sessions[finished.match_id]
-        session = MatchSession(req, self.llm)
+        session = MatchSession(req, self.llm, self.crew_factory)
         self._sessions[session.match_id] = session
         session.start()
         return session

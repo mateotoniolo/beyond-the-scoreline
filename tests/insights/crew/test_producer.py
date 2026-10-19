@@ -1,4 +1,4 @@
-from bts.insights.crew.producer import plan_cues
+from bts.insights.crew.producer import MAX_WAIT_S, plan_cues
 from bts.insights.cues import LOWER_THIRD_S, SIDE_PANEL_S, TICKER_S
 from bts.insights.schemas import AgentStep, Insight
 from bts.insights.templates import render_insight
@@ -23,12 +23,21 @@ def test_lower_third_never_overlaps_previous(detected11):
     assert _layer(second, "lower_third")[0].t_start == goal.t + LOWER_THIRD_S
 
 
-def test_side_panel_and_ticker_follow_same_rule(detected11):
+def test_short_waits_queue_and_long_waits_cut_the_running_cue(detected11):
     snap, goal, later = _two_close_moments(detected11)
     first = plan_cues(render_insight(goal, snap, "analyst", "en"), goal, [], speed=1.0)
     second = plan_cues(render_insight(later, snap, "analyst", "en"), later, first, speed=1.0)
-    assert _layer(second, "side_panel")[0].t_start == goal.t + SIDE_PANEL_S
+    # Ticker: 9 s left on the running cue, within MAX_WAIT_S, so the new one queues.
+    assert TICKER_S - 3.0 <= MAX_WAIT_S
     assert _layer(second, "ticker")[0].t_start == goal.t + TICKER_S
+    # Side panel: 17 s left, too long to wait, so the new one starts now and cuts the old one.
+    assert SIDE_PANEL_S - 3.0 > MAX_WAIT_S
+    panels = _layer(second, "side_panel")
+    new_panel = next(c for c in panels if c.moment_id == later.moment_id)
+    cut_panel = next(c for c in panels if c.moment_id == goal.moment_id)
+    assert new_panel.t_start == later.t
+    assert cut_panel.cue_id == _layer(first, "side_panel")[0].cue_id
+    assert cut_panel.duration_s == 3.0
 
 
 def test_durations_scale_with_playback_speed(detected11):

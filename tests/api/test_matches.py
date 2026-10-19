@@ -58,6 +58,7 @@ async def test_finished_match_exposes_moments_insights_cues_recap(client):
     ins = (await client.get(f"/api/matches/{mid}/insights?profile=analyst&lang=en")).json()
     assert len(ins) == len(moments)
     assert all(i["source"] == "template" for i in ins)  # FakeLLM([]) in tests
+    assert all(i["trace"] == [] for i in ins)
     cues = (await client.get(f"/api/matches/{mid}/cues?profile=fan&lang=es")).json()
     assert cues and all(c["lang"] == "es" for c in cues)
     rec = (await client.get(f"/api/matches/{mid}/recap?profile=fan&lang=es")).json()

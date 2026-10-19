@@ -53,3 +53,28 @@ async def test_create_match_returns_429_when_full(client, app):
     assert r2.status_code == 429
     for s in app.state.sessions.all():
         s.close()
+
+
+async def test_session_cues_never_overlap_on_a_layer():
+    manager = SessionManager(FakeLLM([]))
+    session = manager.create(CreateMatch(seed=11, speed=6000))
+    await _finish(session)
+    cues = await session.cues_for("analyst", "en")
+    assert cues and len({c.cue_id for c in cues}) == len(cues)
+    for layer in ("lower_third", "side_panel", "ticker"):
+        shown = (c for c in cues if c.layer == layer and c.duration_s > 0)
+        on_layer = sorted(shown, key=lambda c: c.t_start)
+        for prev, nxt in zip(on_layer, on_layer[1:], strict=False):
+            assert nxt.t_start >= prev.t_start + prev.duration_s * session.speed - 1e-6, layer
+    again = await session.cues_for("analyst", "en")
+    assert again == cues
+
+
+async def test_session_passes_the_crew_to_its_insight_service():
+    class _Crew:
+        pass
+
+    manager = SessionManager(FakeLLM([]), crew_factory=_Crew)
+    session = manager.create(CreateMatch(seed=1, speed=6000))
+    assert isinstance(session.insights.crew, _Crew)
+    session.close()

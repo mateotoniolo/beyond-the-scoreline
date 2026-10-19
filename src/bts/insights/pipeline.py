@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Protocol
 
 from bts.insights import templates
 from bts.insights.explainer import RecapOutput, explain, recap_from_output
@@ -20,9 +21,29 @@ log = logging.getLogger(__name__)
 CacheKey = tuple[str, str, str]
 
 
+class InsightProducer(Protocol):
+    """What the agent crew offers; tried before the simple pipeline when present."""
+
+    async def for_moment(
+        self,
+        moment: Moment,
+        snap: StatsSnapshot,
+        recent: list[Event],
+        profile: Profile,
+        lang: Lang,
+    ) -> Insight: ...
+
+    async def recap(
+        self, snap: StatsSnapshot, moments: list[Moment], profile: Profile, lang: Lang
+    ) -> Recap: ...
+
+
 class InsightService:
-    def __init__(self, llm: LLMClient) -> None:
+    """Crew first (when configured), then explain → verify → retry once, then the template."""
+
+    def __init__(self, llm: LLMClient, crew: InsightProducer | None = None) -> None:
         self.llm = llm
+        self.crew = crew
         self._tasks: dict[CacheKey, asyncio.Task[Insight]] = {}
 
     async def for_moment(
@@ -54,6 +75,13 @@ class InsightService:
         profile: Profile,
         lang: Lang,
     ) -> Insight:
+        if self.crew is not None:
+            try:
+                return await self.crew.for_moment(moment, snap, recent, profile, lang)
+            except Exception as exc:  # noqa: BLE001 - the simple pipeline is the recovery path
+                log.warning(
+                    "crew failed for %s (%s); using the simple pipeline", moment.moment_id, exc
+                )
         issues: list[str] | None = None
         for attempt in range(2):
             try:
@@ -79,6 +107,11 @@ class InsightService:
     async def recap(
         self, snap: StatsSnapshot, moments: list[Moment], profile: Profile, lang: Lang
     ) -> Recap:
+        if self.crew is not None:
+            try:
+                return await self.crew.recap(snap, moments, profile, lang)
+            except Exception as exc:  # noqa: BLE001 - the simple pipeline is the recovery path
+                log.warning("crew recap failed (%s); using the simple pipeline", exc)
         try:
             out: RecapOutput = await self.llm.complete_json(
                 system=recap_system(profile, lang),
