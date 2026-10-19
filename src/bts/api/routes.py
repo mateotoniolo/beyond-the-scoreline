@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
+from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from bts.api.schemas import CreateMatch, MatchInfo, SpeedUpdate, TeamSummary
@@ -14,6 +15,7 @@ from bts.sim.league import build_league, venue_for
 from bts.sim.models import Event
 from bts.stats.moments import Moment
 from bts.stats.state import StatsSnapshot
+from bts.store.profiles import UserProfile
 
 router = APIRouter(prefix="/api", tags=["matches"])
 
@@ -140,3 +142,25 @@ async def stream(
             session.unsubscribe(queue)
 
     return EventSourceResponse(generator())
+
+
+class ProfileUpdate(BaseModel):
+    profile: Profile = "fan"
+    lang: Lang = "en"
+    favorite_team: str | None = None
+    favorite_player: str | None = None
+
+
+@router.get("/profiles/{user_id}", response_model=UserProfile)
+async def get_profile(request: Request, user_id: str) -> UserProfile:
+    found = await request.app.state.profiles.get(user_id)
+    if found is None:
+        raise HTTPException(status_code=404, detail="profile not found")
+    return found
+
+
+@router.put("/profiles/{user_id}", response_model=UserProfile)
+async def put_profile(request: Request, user_id: str, body: ProfileUpdate) -> UserProfile:
+    profile = UserProfile(user_id=user_id, **body.model_dump())
+    await request.app.state.profiles.put(profile)
+    return profile
