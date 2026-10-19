@@ -7,6 +7,7 @@ Beyond the Scoreline: a synthetic match intelligence engine built for the Micros
 - `src/bts/sim/` generates the fictional league and the match (events with pitch coordinates 0 to 100). No LLM here.
 - `src/bts/stats/` turns events into statistics, observable momentum and key moments. No LLM here.
 - `src/bts/insights/` explains moments: `crew/` (Agent Framework roles, tools over `MatchContext`, producer, cue planning), prompts, `LLMClient` protocol, Foundry client, verifier, template fallback, overlay cues.
+- `src/bts/speech/` spoken insights and recap: SSML with one Azure AI Speech voice per language and profile, REST client, cached clips. Pulled by the client; never on the stream's path.
 - `src/bts/api/` FastAPI app, live match sessions and the SSE stream.
 - `src/bts/store/` user profiles (in memory or Azure Cosmos DB).
 - `web/` Vite + React + TypeScript UI, built into `src/bts/static/`.

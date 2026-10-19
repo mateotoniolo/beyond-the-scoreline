@@ -14,7 +14,7 @@ One container (FastAPI + built web UI) on Azure Container Apps, consumption plan
 infra/deploy.sh
 ```
 
-Builds the image locally for linux/amd64 (free-trial subscriptions cannot run ACR Tasks, so `--source` builds are out), pushes it to the `btsmt2026acr` registry, creates or updates the app, prints the public URL and curls `/healthz`. Re-run after every change you want live; the tag is the current commit. Secrets (`BTS_FOUNDRY_API_KEY`, `BTS_COSMOS_KEY`) are stored as Container Apps secrets, not as plain env vars. The first deploy warns that the app "must be restarted in order for secret changes to take effect"; the final `az containerapp update` creates a new revision, which picks them up. If `/api/matches/{id}/insights` only ever returns `source: template`, run `az containerapp revision restart`.
+Builds the image locally for linux/amd64 (free-trial subscriptions cannot run ACR Tasks, so `--source` builds are out), pushes it to the `btsmt2026acr` registry, creates or updates the app, prints the public URL and curls `/healthz`. Re-run after every change you want live; the tag is the current commit. Secrets (`BTS_FOUNDRY_API_KEY`, `BTS_COSMOS_KEY`, `BTS_SPEECH_KEY`) are stored as Container Apps secrets, not as plain env vars. The first deploy warns that the app "must be restarted in order for secret changes to take effect"; the final `az containerapp update` creates a new revision, which picks them up. If `/api/matches/{id}/insights` only ever returns `source: template`, run `az containerapp revision restart`.
 
 Current deployment: <https://bts.ashygrass-da897bf3.eastus2.azurecontainerapps.io>.
 
@@ -31,6 +31,24 @@ az cosmosdb keys list --name bts-cosmos-mt2026 --resource-group bts-rg --query p
 ```
 
 Put the endpoint and key into `.env` as `BTS_COSMOS_ENDPOINT` and `BTS_COSMOS_KEY`; the app creates the `bts` database and the `profiles` container (partition key `/user_id`) on first use. `infra/deploy.sh` stores the key as the `cosmos-key` secret. Without these variables the app keeps profiles in memory and logs `profiles: in-memory store`.
+
+## Azure AI Speech (narration)
+
+Verified insights and the full-time recap are read aloud by Azure AI Speech neural voices (`src/bts/speech/`). Two ways to get a key:
+
+- A dedicated Speech resource on the free tier (0.5 M neural characters a month; a fully narrated match is about 5 K per variant):
+
+  ```bash
+  az cognitiveservices account create --name bts-speech-mt2026 --resource-group bts-rg \
+    --kind SpeechServices --sku F0 --location eastus2 --yes
+  az cognitiveservices account keys list --name bts-speech-mt2026 --resource-group bts-rg \
+    --query key1 -o tsv
+  ```
+
+  Put the key into `.env` as `BTS_SPEECH_KEY` with `BTS_SPEECH_REGION=eastus2`; the app posts to `https://eastus2.tts.speech.microsoft.com/cognitiveservices/v1`.
+- The Foundry resource itself: `bts-foundry-mt2026` is an Azure AI Services (multi-service) account, so its key also serves Speech at standard rates (about USD 15 per million characters). Set `BTS_SPEECH_KEY` to that key and `BTS_SPEECH_ENDPOINT=https://bts-foundry-mt2026.cognitiveservices.azure.com/tts/cognitiveservices/v1` (the resource's own domain; `BTS_SPEECH_REGION` is still required). This is also the form to use from a network that cannot reach the regional `*.tts.speech.microsoft.com` host.
+
+`infra/deploy.sh` stores the key as the `speech-key` secret and passes the region, the endpoint and `BTS_SPEECH_ENABLED` as env vars. Without a key the app logs `narration: off`, `GET /api/features` reports `narration: false`, the UI hides the switch and the audio endpoints answer 404. `BTS_SPEECH_ENABLED=false` turns narration off without removing the key.
 
 ## Application Insights (agent traces)
 

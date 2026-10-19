@@ -25,6 +25,8 @@ flowchart LR
   UI -- "POST /ask" --> QA["Ask the match: match_qa<br/>Agent with 11 tools over the live session<br/>citation check"]
   QA -.-> F
   QA -. "tools read" .-> SSE
+  UI -- "GET …/audio" --> SP2["bts.speech<br/>SSML, cached MP3 clips"]
+  SP2 -. "REST text to speech" .-> AS["Azure AI Speech<br/>neural voices en-US, es-AR"]
 ```
 
 ## Data flow for one match
@@ -53,6 +55,10 @@ Measured locally against `gpt-5-mini` with minimal reasoning: a verified insight
 ## Ask the match
 
 `bts.insights.qa` is the question desk: one Agent Framework `Agent` (`match_qa`) on the same Foundry chat client, answering a viewer's free-text question about the match on screen from that match's data only. `QAContext` pins the session's statistics when the question arrives and exposes eleven tools over the live session (`get_score_and_clock`, `get_team_stats`, `get_player_stats`, `get_top_players`, `get_lineup`, `get_last_five_minutes`, `get_momentum`, `get_moments`, `get_insight`, `get_recent_events`, `search_events`), sharing the crew's serialisation so names, never ids, reach the model. The agent returns `QAAnswer {answer, citations, confidence, grounded}`; `check_citations` re-checks every cited number against the pinned board (team- and player-qualified values resolve against that team or player, rosters included; numbers read from a crew insight count for their statistic), and the reply is `verified` only when it is grounded, cites at least one number and every citation resolves. One run per question, bounded by 20 s; any failure returns a bilingual fallback with `source: "template"`. The last three exchanges per conversation stay in memory and travel as prior messages. `POST /api/matches/{id}/ask` serves it behind `BTS_QA_ENABLED` (on whenever the crew is on), and `AskPanel` in the right rail shows the answer, its citations, a status badge and the agent step. Measured: median 4.6 s over eight sample questions (`docs/ASK_THE_MATCH.md`).
+
+## Narration
+
+`bts.speech` turns a verified insight (headline, pause, why it matters) or the full-time recap (title and paragraphs) into an MP3 clip through Azure AI Speech's REST text-to-speech endpoint, one neural voice per language and profile (`en-US-AndrewMultilingualNeural` and `en-US-AvaMultilingualNeural`; `es-AR-TomasNeural` and `es-AR-ElenaNeural`, the fan voices a touch quicker and brighter). The SSE stream never waits for it: the UI pulls `GET /api/matches/{id}/insights/{moment_id}/audio` once the insight is on screen and `GET /api/matches/{id}/recap/audio` from the recap dialog, and the `Narrator` caches each clip in memory per match and insight (FIFO, 512 clips) so a replay or a second viewer costs nothing. Every request has a 10 s timeout; a failure answers 503 with its reason and is never cached. The UI's narration switch queues clips one at a time, plays each insight at most once, skips a clip whose turn comes more than 60 s after it arrived, and marks the backlog as read when it is switched on mid-match. Behind `BTS_SPEECH_ENABLED` (on whenever `BTS_SPEECH_KEY` and `BTS_SPEECH_REGION` are set); `GET /api/features` tells the UI.
 
 ## What the badges mean
 
