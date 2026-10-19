@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from bts.insights.llm import LLMClient, LLMError
 from bts.insights.prompts import verifier_system, verifier_user
@@ -18,15 +18,17 @@ ABS_TOL = 1.0
 
 
 class ExplainerOutput(BaseModel):
+    """Model-facing schema: every field required, no constraints (strict JSON schema rules)."""
+
     headline: str
     why_it_matters: str
-    evidence: list[Evidence] = Field(default_factory=list)
-    confidence: float = Field(ge=0, le=1)
+    evidence: list[Evidence]
+    confidence: float
 
 
 class VerifierOutput(BaseModel):
     ok: bool
-    issues: list[str] = Field(default_factory=list)
+    issues: list[str]
 
 
 def _known_numbers(snap: StatsSnapshot, moment: Moment) -> list[float]:

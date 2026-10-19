@@ -2,11 +2,13 @@ import httpx
 import pytest
 
 from bts.api.app import create_app
+from bts.config import Settings
 
 
 @pytest.fixture
 def app():
-    return create_app()
+    # Hermetic: ignore any local .env so tests never reach a real model endpoint.
+    return create_app(Settings(_env_file=None))
 
 
 @pytest.fixture

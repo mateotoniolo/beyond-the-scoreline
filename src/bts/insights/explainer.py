@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from bts.insights.llm import LLMClient
 from bts.insights.prompts import explainer_system, explainer_user
@@ -15,8 +15,8 @@ from bts.stats.state import StatsSnapshot
 
 class RecapOutput(BaseModel):
     title: str
-    paragraphs: list[str] = Field(min_length=1)
-    key_moments: list[str] = Field(default_factory=list)
+    paragraphs: list[str]
+    key_moments: list[str]
 
 
 async def explain(
@@ -41,7 +41,7 @@ async def explain(
         headline=out.headline.strip(),
         why_it_matters=out.why_it_matters.strip(),
         evidence=out.evidence,
-        confidence=out.confidence,
+        confidence=max(0.0, min(1.0, out.confidence)),
         verified=False,
         source="llm",
     )

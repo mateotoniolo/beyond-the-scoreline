@@ -88,11 +88,14 @@ class InsightService:
         except LLMError as exc:
             log.warning("recap failed: %s", exc)
             return templates.render_recap(snap, moments, profile, lang)
+        paragraphs = [p.strip() for p in out.paragraphs if p.strip()]
+        if not out.title.strip() or not paragraphs:
+            return templates.render_recap(snap, moments, profile, lang)
         return Recap(
             profile=profile,
             lang=lang,
             title=out.title.strip(),
-            paragraphs=[p.strip() for p in out.paragraphs if p.strip()],
+            paragraphs=paragraphs,
             key_moments=out.key_moments,
             source="llm",
         )
