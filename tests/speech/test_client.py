@@ -1,0 +1,56 @@
+import httpx
+import pytest
+
+from bts.speech.client import SpeechClient, SpeechError
+
+
+def _client(handler, **kw) -> SpeechClient:
+    return SpeechClient("k3y", "eastus2", transport=httpx.MockTransport(handler), **kw)
+
+
+async def test_posts_ssml_with_the_speech_headers():
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(
+            url=str(request.url),
+            method=request.method,
+            headers=request.headers,
+            body=request.content,
+        )
+        return httpx.Response(200, content=b"ID3mp3")
+
+    assert await _client(handler).synthesize("<speak/>") == b"ID3mp3"
+    assert seen["url"] == "https://eastus2.tts.speech.microsoft.com/cognitiveservices/v1"
+    assert seen["method"] == "POST" and seen["body"] == b"<speak/>"
+    h = seen["headers"]
+    assert h["ocp-apim-subscription-key"] == "k3y"
+    assert h["content-type"] == "application/ssml+xml"
+    assert h["x-microsoft-outputformat"] == "audio-24khz-48kbitrate-mono-mp3"
+    assert h["user-agent"] == "beyond-the-scoreline"
+
+
+async def test_non_200_raises_speech_error_with_status():
+    with pytest.raises(SpeechError, match="401.*Access denied"):
+        await _client(lambda r: httpx.Response(401, text="Access denied")).synthesize("<speak/>")
+
+
+async def test_timeout_raises_speech_error():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("slow")
+
+    with pytest.raises(SpeechError, match="timed out after 10 s"):
+        await _client(handler).synthesize("<speak/>")
+
+
+async def test_transport_error_raises_speech_error():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("no route to host")
+
+    with pytest.raises(SpeechError, match="no route to host"):
+        await _client(handler).synthesize("<speak/>")
+
+
+async def test_empty_body_raises_speech_error():
+    with pytest.raises(SpeechError, match="empty"):
+        await _client(lambda r: httpx.Response(200, content=b"")).synthesize("<speak/>")
