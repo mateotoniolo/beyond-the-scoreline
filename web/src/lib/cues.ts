@@ -8,10 +8,12 @@ import type { Cue } from "../types";
 export function activeCues(cues: Cue[], clockSeconds: number, speed = 1): Cue[] {
   const byLayer = new Map<Cue["layer"], Cue>();
   const factor = Math.max(1, speed);
+  const startOf = (cue: Cue) => Math.max(cue.t_start, cue.shown_from ?? cue.t_start);
   for (const cue of cues) {
-    if (clockSeconds < cue.t_start || clockSeconds >= cue.t_start + cue.duration_s * factor) continue;
+    const start = startOf(cue);
+    if (clockSeconds < start || clockSeconds >= start + cue.duration_s * factor) continue;
     const current = byLayer.get(cue.layer);
-    if (!current || cue.t_start >= current.t_start) byLayer.set(cue.layer, cue);
+    if (!current || start >= startOf(current)) byLayer.set(cue.layer, cue);
   }
   const order: Cue["layer"][] = ["lower_third", "side_panel", "ticker"];
   return order.flatMap((layer) => {

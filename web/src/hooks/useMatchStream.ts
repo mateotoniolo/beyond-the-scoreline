@@ -57,7 +57,11 @@ export function useMatchStream(matchId: string | null, profile: Profile, lang: L
     const on = <T,>(type: string, handler: (data: T) => void) =>
       source.addEventListener(type, (e) => handler(JSON.parse((e as MessageEvent).data) as T));
 
-    on<MatchInfo>("status", (info) => setState((s) => ({ ...s, status: info.status })));
+    on<MatchInfo>("status", (info) => {
+      // The server closes the stream at full time; without this EventSource would reconnect forever.
+      if (info.status === "finished") source.close();
+      setState((s) => ({ ...s, status: info.status }));
+    });
     on<MatchEvent>("event", (event) =>
       setState((s) => ({
         ...s,
@@ -73,11 +77,17 @@ export function useMatchStream(matchId: string | null, profile: Profile, lang: L
       setState((s) => ({ ...s, insights: upsert(s.insights, insight, "insight_id") })),
     );
     on<Cue[]>("cues", (cues) =>
-      setState((s) => ({ ...s, cues: cues.reduce((acc, c) => upsert(acc, c, "cue_id"), s.cues) })),
+      setState((s) => ({
+        ...s,
+        // Live cues are shown from the moment they arrive, so model latency never hides them.
+        cues: cues.reduce((acc, c) => upsert(acc, { ...c, shown_from: s.clock }, "cue_id"), s.cues),
+      })),
     );
     source.onerror = () => {
-      // The server closes the stream at full time; EventSource would otherwise retry forever.
-      setState((s) => (s.status === "finished" ? s : { ...s, status: s.status }));
+      setState((s) => {
+        if (s.status === "finished") source.close();
+        return s;
+      });
     };
 
     return () => {

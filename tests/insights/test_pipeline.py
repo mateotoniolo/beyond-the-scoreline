@@ -69,3 +69,10 @@ async def test_recap_for_goalless_match(goalless_snap):
     llm = FakeLLM([LLMError("down")])
     rec = await InsightService(llm).recap(goalless_snap, [], "fan", "es")
     assert rec.source == "template" and rec.paragraphs
+
+
+async def test_unexpected_error_falls_back_to_template(moment, snap, recent):
+    ins = await InsightService(FakeLLM([RuntimeError("boom")])).for_moment(
+        moment, snap, recent, "analyst", "en"
+    )
+    assert ins.source == "template"

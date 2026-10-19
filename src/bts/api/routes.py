@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from bts.api.schemas import CreateMatch, MatchInfo, SpeedUpdate, TeamSummary
-from bts.api.sessions import MatchSession, Message, sse_payload
+from bts.api.sessions import MatchSession, Message, SessionManager, sse_payload
 from bts.insights.schemas import Cue, Insight, Lang, Profile, Recap
 from bts.sim.league import build_league, venue_for
 from bts.sim.models import Event
@@ -47,7 +47,12 @@ async def teams() -> list[TeamSummary]:
 
 @router.post("/matches", response_model=MatchInfo, status_code=status.HTTP_201_CREATED)
 async def create_match(request: Request, body: CreateMatch) -> MatchInfo:
-    return request.app.state.sessions.create(body).info()
+    try:
+        return request.app.state.sessions.create(body).info()
+    except SessionManager.Full as exc:
+        raise HTTPException(
+            status_code=429, detail="too many live matches; try again in a minute"
+        ) from exc
 
 
 @router.get("/matches/{match_id}", response_model=MatchInfo)

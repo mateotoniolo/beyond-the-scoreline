@@ -69,7 +69,7 @@ The synthetic data generator is a first-class deliverable, not plumbing: the rub
 
 - `MatchState.ingest(event)` updates team and player stats incrementally: passes, completed passes, accuracy, shots, on target, goals, xG (from event meta), possession seconds and percent, pressures, tackles won, fouls, final-third entries.
 - Observable momentum: exponentially weighted difference between home and away "threat" (xG + final-third entries + pressures) over the last five minutes, clipped to [-1, 1].
-- Key moments detected by rules: goal, big chance (xG ≥ 0.30), momentum shift (|Δ| ≥ 0.5 within 300 s), pressure spike (≥ 6 pressure events by one team within 120 s), milestones (team possession ≥ 65% at 30' or 60', a player's third shot, a player's 40th pass), card, period end.
+- Key moments detected by rules: goal, big chance (xG ≥ 0.30), momentum shift (|Δ| ≥ 0.6 within 300 s, |momentum| ≥ 0.35, at least 600 s apart), pressure spike (≥ 6 pressure events by one team within 120 s), milestones (team possession ≥ 65% after 30' or 60', a player's fourth shot, a player's 60th pass), card, period end. Thresholds were tightened during implementation (from 0.5 / third shot / 40th pass) to keep 13 to 22 moments per match instead of about 40.
 
 ### Explanation and verification
 

@@ -10,7 +10,6 @@ from bts.api.routes import router
 from bts.api.sessions import SessionManager
 from bts.config import Settings, get_settings
 from bts.insights.foundry import make_llm
-from bts.insights.pipeline import InsightService
 from bts.store.profiles import make_store
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -21,8 +20,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Beyond the Scoreline", version=__version__)
     app.state.settings = settings
     app.state.llm = make_llm(settings)
-    app.state.insights = InsightService(app.state.llm)
-    app.state.sessions = SessionManager(app.state.insights)
+    app.state.sessions = SessionManager(app.state.llm)
     app.state.profiles = make_store(settings)
 
     @app.get("/healthz")

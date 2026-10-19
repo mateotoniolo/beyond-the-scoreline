@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from bts.api.schemas import CreateMatch, MatchInfo
 from bts.insights.cues import from_insight
+from bts.insights.llm import LLMClient
 from bts.insights.pipeline import InsightService
 from bts.insights.schemas import Cue, Insight, Lang, Profile, Recap
 from bts.sim.engine import MatchSimulator
@@ -26,6 +27,8 @@ MessageType = Literal["status", "event", "stats", "moment", "insight", "cues"]
 STATS_EVERY_N_EVENTS = 4
 MAX_SLEEP_S = 5.0
 DEFAULT_VARIANT: tuple[Profile, Lang] = ("analyst", "en")
+MAX_SESSIONS = 16
+QUEUE_MAXSIZE = 2000
 
 
 class Message(BaseModel):
@@ -34,13 +37,14 @@ class Message(BaseModel):
 
 
 class MatchSession:
-    def __init__(self, req: CreateMatch, insights: InsightService) -> None:
+    def __init__(self, req: CreateMatch, llm: LLMClient) -> None:
         teams = {t.team_id: t for t in build_league(req.seed)}
         self.sim = MatchSimulator(req.seed, teams[req.home], teams[req.away])
         self.match_id = f"{req.seed}-{secrets.token_hex(3)}"
         self.state = MatchState(self.sim.meta)
         self.detector = KeyMomentDetector()
-        self.insights = insights
+        # One cache per match: moment ids restart at 1 for every match.
+        self.insights = InsightService(llm)
         self.speed = req.speed
         self.status: Literal["running", "finished"] = "running"
         self.events: list[Event] = []
@@ -55,6 +59,18 @@ class MatchSession:
     def start(self) -> None:
         if self._task is None:
             self._task = asyncio.create_task(self._run(), name=f"match-{self.match_id}")
+
+    def close(self) -> None:
+        """Stop the match and its child tasks (used when a session is evicted)."""
+        for task in (self._task, *self._children):
+            if task is not None and not task.done():
+                task.cancel()
+        self.status = "finished"
+        for q in list(self._subscribers):
+            try:
+                q.put_nowait(None)
+            except asyncio.QueueFull:
+                pass
 
     async def _run(self) -> None:
         prev_t: float | None = None
@@ -108,10 +124,14 @@ class MatchSession:
         msg = Message(type=type_, data=data)
         for q, variant in self._subscribers.items():
             if only is None or variant == only:
-                q.put_nowait(msg)
+                try:
+                    q.put_nowait(msg)
+                except asyncio.QueueFull:
+                    # A client that cannot keep up loses intermediate messages, not the match.
+                    log.warning("dropping %s for a slow subscriber of %s", type_, self.match_id)
 
     def subscribe(self, profile: Profile, lang: Lang) -> asyncio.Queue[Message | None]:
-        q: asyncio.Queue[Message | None] = asyncio.Queue()
+        q: asyncio.Queue[Message | None] = asyncio.Queue(maxsize=QUEUE_MAXSIZE)
         self._subscribers[q] = (profile, lang)
         return q
 
@@ -176,12 +196,22 @@ class MatchSession:
 
 
 class SessionManager:
-    def __init__(self, insights: InsightService) -> None:
-        self.insights = insights
+    class Full(Exception):
+        """Raised when every slot holds a running match."""
+
+    def __init__(self, llm: LLMClient, max_sessions: int = MAX_SESSIONS) -> None:
+        self.llm = llm
+        self.max_sessions = max_sessions
         self._sessions: dict[str, MatchSession] = {}
 
     def create(self, req: CreateMatch) -> MatchSession:
-        session = MatchSession(req, self.insights)
+        if len(self._sessions) >= self.max_sessions:
+            finished = next((s for s in self._sessions.values() if s.status == "finished"), None)
+            if finished is None:
+                raise SessionManager.Full()
+            finished.close()
+            del self._sessions[finished.match_id]
+        session = MatchSession(req, self.llm)
         self._sessions[session.match_id] = session
         session.start()
         return session

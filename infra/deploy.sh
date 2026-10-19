@@ -40,11 +40,22 @@ az containerapp up \
     "BTS_COSMOS_DATABASE=${BTS_COSMOS_DATABASE:-bts}" \
     "BTS_LOG_LEVEL=${BTS_LOG_LEVEL:-INFO}"
 
-# Secrets are stored on the app and referenced by the env vars below.
-az containerapp secret set --name "$APP" --resource-group "$RG" --output none \
-  --secrets "foundry-key=${BTS_FOUNDRY_API_KEY:-}" "cosmos-key=${BTS_COSMOS_KEY:-}"
+# Secrets are stored on the app and referenced by env vars; only the ones that exist are set.
+SECRETS=()
+SECRET_ENVS=()
+if [[ -n "${BTS_FOUNDRY_API_KEY:-}" ]]; then
+  SECRETS+=("foundry-key=${BTS_FOUNDRY_API_KEY}")
+  SECRET_ENVS+=("BTS_FOUNDRY_API_KEY=secretref:foundry-key")
+fi
+if [[ -n "${BTS_COSMOS_KEY:-}" ]]; then
+  SECRETS+=("cosmos-key=${BTS_COSMOS_KEY}")
+  SECRET_ENVS+=("BTS_COSMOS_KEY=secretref:cosmos-key")
+fi
+if (( ${#SECRETS[@]} )); then
+  az containerapp secret set --name "$APP" --resource-group "$RG" --output none --secrets "${SECRETS[@]}"
+  az containerapp update --name "$APP" --resource-group "$RG" --output none --set-env-vars "${SECRET_ENVS[@]}"
+fi
 az containerapp update --name "$APP" --resource-group "$RG" --output none \
-  --set-env-vars "BTS_FOUNDRY_API_KEY=secretref:foundry-key" "BTS_COSMOS_KEY=secretref:cosmos-key" \
   --min-replicas "$MIN_REPLICAS" --max-replicas 1 --cpu 0.5 --memory 1.0Gi
 
 FQDN=$(az containerapp show --name "$APP" --resource-group "$RG" --query properties.configuration.ingress.fqdn -o tsv)

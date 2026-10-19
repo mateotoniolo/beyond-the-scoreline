@@ -21,7 +21,7 @@ interface Props {
   onFavorite: (t: string | null) => void;
 }
 
-const SPEEDS = [1, 2, 5, 10, 30, 60];
+const SPEEDS = [1, 2, 5, 10, 30, 60, 600];
 
 export function Controls(p: Props) {
   const { setup } = p;

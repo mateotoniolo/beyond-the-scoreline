@@ -12,9 +12,8 @@ from bts.insights.schemas import FAN_MAX_NUMBERS, HEADLINE_MAX, WHY_MAX, Evidenc
 from bts.stats.moments import Moment
 from bts.stats.state import StatsSnapshot
 
-NUMBER_RE = re.compile(r"-?\d+(?:\.\d+)?")
-REL_TOL = 0.05
-ABS_TOL = 1.0
+# A minus sign only counts when it is not the dash of a range such as "1-3".
+NUMBER_RE = re.compile(r"(?<!\d)-?\d+(?:\.\d+)?")
 
 
 class ExplainerOutput(BaseModel):
@@ -31,7 +30,80 @@ class VerifierOutput(BaseModel):
     issues: list[str]
 
 
-def _known_numbers(snap: StatsSnapshot, moment: Moment) -> list[float]:
+ALIASES = {
+    "xg": "xg",
+    "expected_goals": "xg",
+    "shot_xg": "shot_xg",
+    "chance_xg": "shot_xg",
+    "possession": "possession_pct",
+    "possession_pct": "possession_pct",
+    "possession_percent": "possession_pct",
+    "pass_accuracy": "pass_accuracy",
+    "accuracy": "pass_accuracy",
+    "passes_completed": "passes_completed",
+    "completed_passes": "passes_completed",
+    "passes": "passes",
+    "shots": "shots",
+    "shots_on_target": "shots_on_target",
+    "on_target": "shots_on_target",
+    "goals": "goals",
+    "pressures": "pressures",
+    "pressure_events": "pressures",
+    "fouls": "fouls",
+    "tackles_won": "tackles_won",
+    "final_third_entries": "final_third_entries",
+    "momentum": "momentum",
+    "score": "score",
+    "minute": "minute",
+    "clock": "minute",
+}
+INT_TOL = 1.0
+FLOAT_REL = 0.05
+FLOAT_ABS = 0.05
+
+
+def _normalize(stat: str) -> str:
+    key = re.sub(r"[^a-z0-9]+", "_", stat.strip().lower()).strip("_")
+    return ALIASES.get(key, key)
+
+
+def _close(value: float, known: float) -> bool:
+    if float(known).is_integer() and value.is_integer():
+        return abs(value - known) <= INT_TOL
+    return abs(value - known) <= max(FLOAT_ABS, FLOAT_REL * abs(known))
+
+
+def _candidates_for(key: str, snap: StatsSnapshot, moment: Moment) -> list[float]:
+    """Numbers a correctly named stat may legitimately refer to."""
+    teams = [moment.team_id] if moment.team_id in snap.teams else []
+    teams += [t for t in snap.teams if t not in teams]
+    values: list[float] = []
+    if key == "score":
+        return [float(snap.score[0]), float(snap.score[1])]
+    if key == "minute":
+        return [moment.t / 60, snap.t / 60]
+    if key == "momentum":
+        return [snap.momentum, abs(snap.momentum)]
+    if key == "shot_xg":
+        values.extend(float(v) for k, v in moment.facts.items() if k == "xg")
+    if key in moment.facts and isinstance(moment.facts[key], int | float):
+        values.append(float(moment.facts[key]))
+    for tid in teams:
+        for stats in (snap.teams[tid], snap.last5.get(tid)):
+            if stats is None:
+                continue
+            data = stats.model_dump()
+            if key in data and isinstance(data[key], int | float):
+                values.append(float(data[key]))
+    if moment.player_id and moment.player_id in snap.players:
+        data = snap.players[moment.player_id].model_dump()
+        if key in data and isinstance(data[key], int | float):
+            values.append(float(data[key]))
+    return values
+
+
+def _strict_pool(snap: StatsSnapshot, moment: Moment) -> list[float]:
+    """Fallback for unrecognised stat names: every number on the board, matched strictly."""
     values: list[float] = [float(snap.score[0]), float(snap.score[1]), snap.momentum]
     for stats in list(snap.teams.values()) + list(snap.last5.values()):
         values.extend(
@@ -39,21 +111,27 @@ def _known_numbers(snap: StatsSnapshot, moment: Moment) -> list[float]:
             for k, v in stats.model_dump().items()
             if isinstance(v, int | float) and k != "possession_seconds"
         )
-    values.extend(snap.pressure_index.values())
     if moment.player_id and moment.player_id in snap.players:
-        ps = snap.players[moment.player_id]
-        values.extend(float(v) for v in ps.model_dump().values() if isinstance(v, int | float))
+        values.extend(
+            float(v)
+            for v in snap.players[moment.player_id].model_dump().values()
+            if isinstance(v, int | float)
+        )
     values.extend(float(v) for v in moment.facts.values() if isinstance(v, int | float))
-    values.append(moment.t / 60)
     return values
 
 
-def _supported(value: float, known: list[float]) -> bool:
-    return any(abs(value - k) <= max(ABS_TOL, REL_TOL * abs(k)) for k in known)
+def _supported(value: float, candidates: list[float]) -> bool:
+    return any(_close(value, k) for k in candidates)
 
 
 def check_facts(insight: Insight, snap: StatsSnapshot, moment: Moment) -> list[str]:
-    """Return human-readable issues; an empty list means the insight passes."""
+    """Return human-readable issues; an empty list means the insight passes.
+
+    Evidence is resolved by stat name: ``xg`` must match the team's (or player's or moment's)
+    xG, ``passes`` the pass count, and so on. Integer stats tolerate one unit, floats 5%.
+    Unknown names fall back to a strict match against every number on the board.
+    """
     issues: list[str] = []
     if len(insight.headline) > HEADLINE_MAX:
         issues.append(f"headline longer than {HEADLINE_MAX} characters")
@@ -70,14 +148,17 @@ def check_facts(insight: Insight, snap: StatsSnapshot, moment: Moment) -> list[s
             )
     elif not insight.evidence:
         issues.append("analyst copy must cite at least one piece of numeric evidence")
-    known = _known_numbers(snap, moment)
+    pool = _strict_pool(snap, moment)
     for ev in insight.evidence:
-        match = NUMBER_RE.search(ev.value.replace("%", ""))
-        if match is None:
+        numbers = [float(n) for n in NUMBER_RE.findall(ev.value.replace("%", ""))]
+        if not numbers:
             continue
-        value = float(match.group())
-        if not _supported(value, known):
-            issues.append(f"evidence {ev.stat}={ev.value} is not supported by the statistics")
+        key = _normalize(ev.stat)
+        candidates = _candidates_for(key, snap, moment) or pool
+        for value in numbers:
+            if not _supported(value, candidates):
+                issues.append(f"evidence {ev.stat}={ev.value} is not supported by the statistics")
+                break
     return issues
 
 

@@ -7,7 +7,7 @@ import logging
 
 from bts.insights import templates
 from bts.insights.explainer import RecapOutput, explain
-from bts.insights.llm import LLMClient, LLMError
+from bts.insights.llm import LLMClient
 from bts.insights.prompts import recap_system, recap_user
 from bts.insights.schemas import Insight, Lang, Profile, Recap
 from bts.insights.verifier import verify
@@ -58,7 +58,7 @@ class InsightService:
         for attempt in range(2):
             try:
                 insight = await explain(self.llm, moment, snap, recent, profile, lang, issues)
-            except LLMError as exc:
+            except Exception as exc:  # noqa: BLE001 - any model failure degrades to a template
                 log.warning(
                     "explainer failed (%s/%s) for %s: %s", attempt + 1, 2, moment.moment_id, exc
                 )
@@ -85,7 +85,7 @@ class InsightService:
                 user=recap_user(snap, moments, profile, lang),
                 schema=RecapOutput,
             )
-        except LLMError as exc:
+        except Exception as exc:  # noqa: BLE001 - any model failure degrades to a template
             log.warning("recap failed: %s", exc)
             return templates.render_recap(snap, moments, profile, lang)
         paragraphs = [p.strip() for p in out.paragraphs if p.strip()]

@@ -29,3 +29,10 @@ test("activeCues keeps a cue for duration_s real seconds at higher playback spee
   expect(activeCues(cues, 100, 30).map((c) => c.cue_id)).toEqual(["a"]);
   expect(activeCues(cues, 251, 30)).toEqual([]);
 });
+
+test("a cue that arrives late is shown from its arrival clock, not from t_start", () => {
+  const late = { ...cue("a", "lower_third", 10, 8), shown_from: 400 };
+  expect(activeCues([late], 100, 30)).toEqual([]);
+  expect(activeCues([late], 401, 30).map((c) => c.cue_id)).toEqual(["a"]);
+  expect(activeCues([late], 400 + 8 * 30 + 1, 30)).toEqual([]);
+});

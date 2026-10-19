@@ -169,4 +169,14 @@ export interface Cue {
   lang: Lang;
   profile: Profile;
   moment_id: string;
+  /** Match clock at which the UI received the cue; set client-side for live cues. */
+  shown_from?: number;
+}
+
+export interface UserProfile {
+  user_id: string;
+  profile: Profile;
+  lang: Lang;
+  favorite_team: string | null;
+  favorite_player: string | null;
 }

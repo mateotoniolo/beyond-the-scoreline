@@ -27,6 +27,12 @@ flowchart LR
 4. Insights become cues: lower third (8 s), side panel (20 s), ticker (12 s, analyst only), each with `t_start` and `duration_s` so a rendering partner can draw them in sync with the clock. The UI scales the window by playback speed.
 5. The UI switches profile or language by reconnecting the stream; the backend generates the missing variants on demand. Profiles persist in Cosmos DB when configured.
 
+## What the badges mean
+
+- `source: llm` with `verified: true`: the model wrote it, every cited number resolved against the named statistic within tolerance (one unit for counts, 5% for ratios), and a second Foundry call found no contradiction in the prose.
+- `source: llm` with `verified: false`: the numbers passed the deterministic check but the Foundry cross-check was unavailable (timeout or rate limit). The text is kept, labelled honestly.
+- `source: template`: the model failed twice or was never configured; the copy is deterministic and bilingual.
+
 ## Why the model never blocks the stream
 
 The event loop that advances the match only awaits `asyncio.sleep`. Insight generation runs in child tasks; the stream carries events and stats immediately and insights whenever they are ready. Any model failure (timeout 20 s, 429, refusal, schema mismatch) ends in a template with `source: "template"` and `verified: false`, visible in the UI.

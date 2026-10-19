@@ -6,7 +6,7 @@ Beyond the Scoreline calls one Foundry model deployment for the Explainer, the V
 
 Source: Microsoft Learn, *How to use structured outputs with Azure OpenAI in Microsoft Foundry Models* (page dated 2026-08-24), Python pivot.
 
-- Client: the plain `openai` package (2.x), `OpenAI(base_url="https://YOUR-RESOURCE-NAME.openai.azure.com/openai/v1/", api_key=...)`. `api_key` is either the resource key or an Entra token provider: `get_bearer_token_provider(DefaultAzureCredential(), "https://ai.azure.com/.default")`.
+- Client: the plain `openai` package (3.x installed; the same surface as 2.x), `OpenAI(base_url="https://YOUR-RESOURCE-NAME.openai.azure.com/openai/v1/", api_key=...)`. `api_key` is either the resource key or an Entra token provider: `get_bearer_token_provider(DefaultAzureCredential(), "https://ai.azure.com/.default")`.
 - Structured output: `client.responses.parse(model=DEPLOYMENT, input=..., text_format=PydanticModel)` returns the model in `response.output_parsed`. (Chat Completions equivalent: `client.chat.completions.parse(..., response_format=PydanticModel)`.)
 - Schema rules enforced by Azure: every field required, `additionalProperties: false`, no `minimum`/`maximum`/`minLength`/`maxLength`. Our model-facing schemas follow that; limits are checked after parsing.
 - Timeouts: `client.with_options(timeout=20.0)`; on timeout the SDK raises `APITimeoutError` (subclass of `APIError`). We wrap every `APIError` in `LLMError`.

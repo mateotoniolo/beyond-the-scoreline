@@ -3,7 +3,7 @@
 import random
 
 CLUBS: list[tuple[str, str, tuple[str, str], str]] = [
-    ("Northbridge Athletic", "NBA", ("#1d4ed8", "#f8fafc"), "Ironworks Park"),
+    ("Northbridge Athletic", "NTH", ("#1d4ed8", "#f8fafc"), "Ironworks Park"),
     ("Saltmarsh Rovers", "SMR", ("#b91c1c", "#fde68a"), "The Tidal Ground"),
     ("Kestrel Park FC", "KPF", ("#047857", "#ecfdf5"), "Kestrel Park"),
     ("Elderwick Wanderers", "ELD", ("#7c3aed", "#fef3c7"), "Elderwick Meadow"),

@@ -29,7 +29,7 @@ class FoundryClient:
         self.model = settings.foundry_model
         api_key: object = settings.foundry_api_key
         if not api_key:
-            from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+            from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
 
             api_key = get_bearer_token_provider(DefaultAzureCredential(), ENTRA_SCOPE)
         self._client = AsyncOpenAI(

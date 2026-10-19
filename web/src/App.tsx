@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createMatch, getRecap, getTeams } from "./api";
+import { createMatch, getProfile, getRecap, getTeams, putProfile } from "./api";
 import { Controls, type Setup } from "./components/Controls";
 import { EventFeed } from "./components/EventFeed";
 import { InsightFeed } from "./components/InsightFeed";
@@ -12,8 +12,24 @@ import { useMatchStream } from "./hooks/useMatchStream";
 import { activeCues } from "./lib/cues";
 import type { Lang, MatchInfo, Profile, Recap, TeamSummary } from "./types";
 
+const USER_KEY = "bts.user_id";
+
+function userId(): string {
+  try {
+    const existing = localStorage.getItem(USER_KEY);
+    if (existing) return existing;
+    const fresh = `u-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(USER_KEY, fresh);
+    return fresh;
+  } catch {
+    return "anonymous";
+  }
+}
+
 export default function App() {
   const [teams, setTeams] = useState<TeamSummary[]>([]);
+  const [uid] = useState(userId);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [setup, setSetup] = useState<Setup>({ seed: 11, home: "t1", away: "t2", speed: 30 });
   const [profile, setProfile] = useState<Profile>("analyst");
   const [lang, setLang] = useState<Lang>("en");
@@ -26,6 +42,23 @@ export default function App() {
   useEffect(() => {
     getTeams().then(setTeams).catch((e: Error) => setError(e.message));
   }, []);
+
+  // Profile, language and followed club persist per visitor (Azure Cosmos DB when configured).
+  useEffect(() => {
+    getProfile(uid)
+      .then((p) => {
+        setProfile(p.profile);
+        setLang(p.lang);
+        setFavorite(p.favorite_team);
+      })
+      .catch(() => undefined)
+      .finally(() => setProfileLoaded(true));
+  }, [uid]);
+
+  useEffect(() => {
+    if (!profileLoaded) return;
+    putProfile(uid, { profile, lang, favorite_team: favorite, favorite_player: null }).catch(() => undefined);
+  }, [uid, profileLoaded, profile, lang, favorite]);
 
   const stream = useMatchStream(info?.match_id ?? null, profile, lang);
   const cues = useMemo(

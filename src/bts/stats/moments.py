@@ -197,7 +197,7 @@ class KeyMomentDetector:
                             e,
                             team_id=tid,
                             player_id=None,
-                            facts={"kind": "possession", "pct": pct, "minute": mark},
+                            facts={"kind": "possession", "pct": pct, "minute": minute},
                             severity=0.4,
                         )
         if e.player_id and e.type in ("pass", "shot"):
