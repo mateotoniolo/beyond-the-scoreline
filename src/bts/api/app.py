@@ -1,0 +1,31 @@
+"""FastAPI application factory."""
+
+from pathlib import Path
+
+from fastapi import APIRouter, FastAPI
+from fastapi.staticfiles import StaticFiles
+
+from bts import __version__
+from bts.config import Settings, get_settings
+
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or get_settings()
+    app = FastAPI(title="Beyond the Scoreline", version=__version__)
+    app.state.settings = settings
+
+    @app.get("/healthz")
+    async def healthz() -> dict[str, str]:
+        return {"status": "ok", "version": __version__}
+
+    api = APIRouter(prefix="/api")
+    app.include_router(api)
+
+    if (STATIC_DIR / "index.html").exists():
+        app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+    return app
+
+
+app = create_app()

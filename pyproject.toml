@@ -1,0 +1,40 @@
+[project]
+name = "bts"
+version = "0.1.0"
+description = "Beyond the Scoreline: synthetic match intelligence engine (Inside the Game hackathon)"
+readme = "README.md"
+authors = [
+    { name = "mateotoniolo", email = "mateojustotoniolo@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.147.0",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.16.0",
+    "sse-starlette>=3.5.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.10.9,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.17.1",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+exclude = ["docs", "web", ".superpowers"]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

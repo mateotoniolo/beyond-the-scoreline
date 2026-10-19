@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+# Stage 1: build the web UI (populated in Task 12; empty until then)
+FROM node:22-alpine AS web
+WORKDIR /web
+RUN mkdir -p /web/dist
+
+# Stage 2: Python runtime
+FROM python:3.12-slim AS app
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+WORKDIR /app
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+COPY pyproject.toml uv.lock README.md ./
+COPY src ./src
+RUN uv sync --frozen --no-dev
+COPY --from=web /web/dist ./src/bts/static
+EXPOSE 8000
+CMD ["uv", "run", "--no-sync", "uvicorn", "bts.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
