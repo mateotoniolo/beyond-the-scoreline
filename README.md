@@ -69,8 +69,8 @@ The event format is documented in `docs/DATA.md`; JSON Schemas live in `docs/sch
 
 ## Seeds worth watching
 
-- `11`: Northbridge Athletic vs Saltmarsh Rovers, an early away goal and a late equaliser.
-- `5`: a 2-0 with a clear chance missed.
+- `11`: Northbridge Athletic vs Saltmarsh Rovers, three away goals and a late home reply (1-3).
+- `5`: a goalless draw with the momentum swinging both ways.
 - `1000` to `1199`: the realism check set.
 
 ## Cost notes
