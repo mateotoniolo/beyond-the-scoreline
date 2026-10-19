@@ -1,0 +1,78 @@
+"""Agent factories: three model-backed roles sharing one Foundry chat client."""
+
+from __future__ import annotations
+
+from agent_framework import Agent
+from agent_framework.openai import OpenAIChatClient, OpenAIChatOptions
+from pydantic import BaseModel
+
+from bts.config import Settings
+from bts.insights.crew import prompts
+from bts.insights.crew.context import MatchContext
+from bts.insights.foundry import MAX_OUTPUT_TOKENS, REASONING_EFFORT
+from bts.insights.schemas import Evidence, Lang, Profile
+
+ANALYST = "tactical_analyst"
+NARRATOR = "narrator"
+FACT_CHECKER = "fact_checker"
+PRODUCER = "producer"
+CHECKER_TOOLS = frozenset({"get_team_stats", "get_player_stats", "get_momentum", "check_numbers"})
+
+
+class Analysis(BaseModel):
+    """What the tactical analyst hands to the narrator."""
+
+    pattern: str
+    key_numbers: list[Evidence]
+    confidence: float
+
+
+def resource_endpoint(foundry_endpoint: str) -> str:
+    """``https://x.openai.azure.com/openai/v1/`` becomes ``https://x.openai.azure.com``."""
+    return foundry_endpoint.split("/openai/")[0].rstrip("/")
+
+
+def make_chat_client(settings: Settings) -> OpenAIChatClient:
+    if not settings.foundry_endpoint or not settings.foundry_api_key:
+        raise ValueError("BTS_FOUNDRY_ENDPOINT and BTS_FOUNDRY_API_KEY are required for the crew")
+    return OpenAIChatClient(
+        model=settings.foundry_model,
+        api_key=settings.foundry_api_key,
+        azure_endpoint=resource_endpoint(settings.foundry_endpoint),
+    )
+
+
+def model_options(response_format: type[BaseModel] | None, model: str) -> OpenAIChatOptions:
+    """Per-run options: structured output, a generous token cap and minimal reasoning."""
+    opts: OpenAIChatOptions = {"max_tokens": MAX_OUTPUT_TOKENS}
+    if response_format is not None:
+        opts["response_format"] = response_format
+    if model.startswith(("gpt-5", "o")):
+        opts["reasoning"] = {"effort": REASONING_EFFORT}  # type: ignore[typeddict-item]
+    return opts
+
+
+def make_analyst(client: OpenAIChatClient, ctx: MatchContext) -> Agent:
+    tools = [t for t in ctx.tools() if t.name != "check_numbers"]
+    return Agent(
+        client=client, name=ANALYST, instructions=prompts.analyst_instructions(), tools=tools
+    )
+
+
+def make_narrator(client: OpenAIChatClient, profile: Profile, lang: Lang) -> Agent:
+    return Agent(
+        client=client,
+        name=NARRATOR,
+        instructions=prompts.narrator_instructions(profile, lang),
+        tools=[],
+    )
+
+
+def make_fact_checker(client: OpenAIChatClient, ctx: MatchContext) -> Agent:
+    tools = [t for t in ctx.tools() if t.name in CHECKER_TOOLS]
+    return Agent(
+        client=client,
+        name=FACT_CHECKER,
+        instructions=prompts.fact_checker_instructions(),
+        tools=tools,
+    )
