@@ -14,6 +14,12 @@ from bts import __version__
 from bts.config import Settings
 
 SERVICE_NAME = "beyond-the-scoreline"
+# The exporter and the SDK's HTTP policy log every transmission at INFO; with the logging
+# handler attached those lines would be exported again, one transmission per second forever.
+QUIET_LOGGERS = (
+    "azure.monitor.opentelemetry.exporter",
+    "azure.core.pipeline.policies.http_logging_policy",
+)
 log = logging.getLogger(__name__)
 _configured = False
 
@@ -34,6 +40,8 @@ def configure_telemetry(settings: Settings) -> bool:
         connection_string=settings.app_insights_connection_string, resource=resource
     )
     enable_instrumentation()
+    for name in QUIET_LOGGERS:
+        logging.getLogger(name).setLevel(logging.WARNING)
     _configured = True
     log.info("telemetry: Application Insights on as service %s", SERVICE_NAME)
     return True

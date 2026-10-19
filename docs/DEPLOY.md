@@ -47,9 +47,11 @@ az monitor app-insights component show --app bts-insights --resource-group bts-r
 Put the value into `.env` as `APPLICATIONINSIGHTS_CONNECTION_STRING`; `infra/deploy.sh` stores it as the `appinsights-cs` secret. Without it the app logs `telemetry: off`. Query the spans with:
 
 ```bash
-az monitor app-insights query --app bts-insights --resource-group bts-rg \
+az monitor app-insights query --app bts-insights --resource-group bts-rg --offset 6h \
   --analytics-query "dependencies | where name startswith 'invoke_agent' | project timestamp, name, duration | top 20 by timestamp desc"
 ```
+
+`--offset` widens the CLI's query window (it defaults to the last hour, whatever the KQL says). Spans from a match at 30× show up within seconds; a 300× burst on the 0.5 vCPU replica saturates the exporter and drops them. The connection string holds several `;`-separated fields: `infra/deploy.sh` reads `.env` line by line for that reason (sourcing it would cut the value at the first `;`).
 
 `BTS_AGENT_MODE=simple` turns the crew off (two prompts instead of four roles) without redeploying anything else.
 
