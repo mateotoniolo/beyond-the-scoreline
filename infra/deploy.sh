@@ -25,8 +25,20 @@ if [[ ! -f "$ENV_FILE" ]]; then
   echo "missing $ENV_FILE (copy .env.example)" >&2
   exit 1
 fi
-# shellcheck disable=SC1090
-set -a; source "$ENV_FILE"; set +a
+# Read KEY=VALUE lines verbatim: sourcing the file would cut values at ';' (the Application
+# Insights connection string has several) and treat the rest as commands.
+while IFS= read -r line || [[ -n "$line" ]]; do
+  [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || continue
+  key="${line%%=*}"
+  value="${line#*=}"
+  if [[ "$value" == \"*\" ]]; then
+    value="${value#\"}"; value="${value%\"}"
+  else
+    value="${value%%[[:space:]]#*}"   # drop an inline comment
+    value="${value%"${value##*[![:space:]]}"}"  # and trailing spaces
+  fi
+  export "$key=$value"
+done < "$ENV_FILE"
 
 # The registry's TLS handshake times out now and then; retry the login and the push.
 retry() {
