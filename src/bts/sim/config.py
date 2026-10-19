@@ -19,6 +19,7 @@ class SimConfig:
 
     shot_rate_final_third: float = 0.038
     long_shot_rate: float = 0.02
+    xg_spread_sigma: float = 0.6
     pressure_rate: float = 0.06
     foul_rate: float = 0.015
     carry_dispossess_rate: float = 0.06

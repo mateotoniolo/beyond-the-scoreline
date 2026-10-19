@@ -463,6 +463,8 @@ class MatchSimulator:
         zone = _shot_zone(ball.x, ball.y)
         xg = cfg.xg_by_zone[zone] * (0.8 + 0.4 * shooter.attrs.shooting)
         xg *= 1 + 0.1 * self._momentum_for(side.team_id)
+        # Per-shot spread (log-normal, mean preserved) so clear chances exist.
+        xg *= math.exp(rng.gauss(0, cfg.xg_spread_sigma)) / math.exp(cfg.xg_spread_sigma**2 / 2)
         xg = round(_clip(xg, 0.01, 0.9), 3)
         subtype = "header" if zone == "box_central" and rng.random() < 0.2 else "open_play"
         if rng.random() < 0.08:

@@ -21,11 +21,11 @@ Every match comes from our own seeded generator (`bts.sim`): a fictional four-cl
 
 | metric | value | target | ok |
 |---|---|---|---|
-| goals_per_match | 2.590 | 2.2 to 3.4 | yes |
-| shots_per_match | 27.660 | 20 to 32 | yes |
-| passes_per_match | 955.685 | 800 to 1100 | yes |
-| pass_accuracy | 0.805 | 0.76 to 0.88 | yes |
-| fouls_per_match | 26.885 | 16 to 30 | yes |
-| home_possession | 0.512 | 0.45 to 0.55 | yes |
+| goals_per_match | 2.600 | 2.2 to 3.4 | yes |
+| shots_per_match | 27.540 | 20 to 32 | yes |
+| passes_per_match | 958.230 | 800 to 1100 | yes |
+| pass_accuracy | 0.806 | 0.76 to 0.88 | yes |
+| fouls_per_match | 26.255 | 16 to 30 | yes |
+| home_possession | 0.513 | 0.45 to 0.55 | yes |
 
 The event format is documented in `docs/DATA.md`; JSON Schemas live in `docs/schema/`.
