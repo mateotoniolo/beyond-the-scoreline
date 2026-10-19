@@ -14,7 +14,9 @@ One container (FastAPI + built web UI) on Azure Container Apps, consumption plan
 infra/deploy.sh
 ```
 
-Prints the public URL and curls `/healthz`. Re-run after every change you want live. Secrets (`BTS_FOUNDRY_API_KEY`, `BTS_COSMOS_KEY`) are stored as Container Apps secrets, not as plain env vars.
+Builds the image locally for linux/amd64 (free-trial subscriptions cannot run ACR Tasks, so `--source` builds are out), pushes it to the `btsmt2026acr` registry, creates or updates the app, prints the public URL and curls `/healthz`. Re-run after every change you want live; the tag is the current commit. Secrets (`BTS_FOUNDRY_API_KEY`, `BTS_COSMOS_KEY`) are stored as Container Apps secrets, not as plain env vars. The first deploy warns that the app "must be restarted in order for secret changes to take effect"; the final `az containerapp update` creates a new revision, which picks them up. If `/api/matches/{id}/insights` only ever returns `source: template`, run `az containerapp revision restart`.
+
+Current deployment: <https://bts.ashygrass-da897bf3.eastus2.azurecontainerapps.io>.
 
 ## Judging window
 

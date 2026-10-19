@@ -6,6 +6,10 @@ A seeded generator plays a football-realistic match event by event. A determinis
 
 All clubs, players and venues are fictional. No real league data is bundled, derived or redistributed.
 
+## Live demo
+
+<https://bts.ashygrass-da897bf3.eastus2.azurecontainerapps.io> (Azure Container Apps, eastus2). Pick seed 11 at 30×, press play; insights labelled `Foundry` with a `verified` badge come from `gpt-5-mini` through Microsoft Foundry.
+
 ## The five stages, mapped to code
 
 | Stage | What happens | Where |
