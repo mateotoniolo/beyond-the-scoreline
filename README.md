@@ -1,10 +1,29 @@
 # Beyond the Scoreline
 
-Synthetic match intelligence engine for the Microsoft + Premier League **Inside the Game: Developer Hackathon**.
+Synthetic match intelligence engine for the Microsoft + Premier League **Inside the Game: Developer Hackathon**. Category: Best Use of Microsoft Foundry.
 
-A seeded generator produces a football-realistic match event by event. A deterministic layer turns events into statistics, momentum and key moments. A Microsoft Foundry model explains why each moment matters, a verifier checks every claim against the numbers, and the result is rendered as timed overlay cues and a live web UI, personalized for analysts or fans in English or Spanish.
+A seeded generator plays a football-realistic match event by event. A deterministic layer turns events into statistics, momentum and key moments. A Microsoft Foundry model explains why each moment matters, a verifier checks every claim against the numbers, and the result is rendered as timed overlay cues and a live web UI, personalized for analysts or fans in English or Spanish.
 
-All clubs, players and venues are fictional.
+All clubs, players and venues are fictional. No real league data is bundled, derived or redistributed.
+
+## The five stages, mapped to code
+
+| Stage | What happens | Where |
+|---|---|---|
+| 1 Ingest | Seeded simulator emits passes, carries, shots, duels, pressures, fouls, cards and substitutions with pitch coordinates and xG | `src/bts/sim/` |
+| 2 Interpret | Incremental possession, pass accuracy, shots, xG, pressures, final-third entries, observable momentum; rule-based key moments | `src/bts/stats/` |
+| 3 Explain | Microsoft Foundry explainer with structured JSON, deterministic fact check, Foundry verifier, one retry, template fallback | `src/bts/insights/` |
+| 4 Render | Lower third, side panel and ticker cues with `t_start` and `duration_s`; SSE stream; REST endpoints | `src/bts/insights/cues.py`, `src/bts/api/` |
+| 5 Personalize | Analyst or fan, English or Spanish, follow-your-club mode, profiles in Azure Cosmos DB | `web/`, `src/bts/store/` |
+
+Architecture diagram and data flow: `docs/ARCHITECTURE.md`. Judging criteria to evidence: `docs/RUBRIC_MAP.md`.
+
+## Microsoft and Azure services
+
+- **Microsoft Foundry**: `gpt-5-mini` through the Responses API with JSON-schema structured outputs, for the explainer, the verifier and the recap (`docs/FOUNDRY.md`).
+- **Azure Container Apps**: the single container, external ingress, scale-to-zero outside the judging window (`docs/DEPLOY.md`).
+- **Azure Cosmos DB**: user profiles, free tier.
+- **GitHub Copilot and Azure MCP Server**: `AGENTS.md`, `.github/copilot-instructions.md`, `.vscode/mcp.json` (`docs/COPILOT_USAGE.md`).
 
 ## Run locally
 
@@ -47,3 +66,17 @@ Every match comes from our own seeded generator (`bts.sim`): a fictional four-cl
 | home_possession | 0.511 | 0.45 to 0.55 | yes |
 
 The event format is documented in `docs/DATA.md`; JSON Schemas live in `docs/schema/`.
+
+## Seeds worth watching
+
+- `11`: Northbridge Athletic vs Saltmarsh Rovers, an early away goal and a late equaliser.
+- `5`: a 2-0 with a clear chance missed.
+- `1000` to `1199`: the realism check set.
+
+## Cost notes
+
+A match produces 13 to 22 key moments; each requested variant costs two short Foundry calls per moment plus one recap. Variants are generated on demand and cached. The deployment runs on the Container Apps consumption grant with one warm replica only during judging.
+
+## License
+
+MIT. See `LICENSE`.
