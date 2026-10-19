@@ -1,6 +1,7 @@
 """Shared match state that the crew's agents read through Agent Framework tools.
 
 Every tool returns compact JSON keyed by team and player names; ids never reach the model.
+The module-level payload builders are shared with the question desk (``bts.insights.qa``).
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from bts.insights.schemas import Evidence, Insight
 from bts.insights.verifier import check_facts
 from bts.sim.models import Event
 from bts.stats.moments import Moment
-from bts.stats.state import StatsSnapshot, TeamStats
+from bts.stats.state import PlayerStats, StatsSnapshot, TeamStats
 
 ID_FIELDS = ("team_id", "player_id", "event_ids")
 HIDDEN_TEAM_FIELDS = ("possession_seconds",)
@@ -30,12 +31,62 @@ EvidenceJson = Annotated[
 ]
 
 
-def _dump(data: Any) -> str:
+def dump(data: Any) -> str:
     return json.dumps(data, ensure_ascii=False)
 
 
-def _team_stats(stats: TeamStats) -> dict[str, Any]:
+# ---------------------------------------------------------------- shared payload builders
+def team_names(snap: StatsSnapshot) -> list[str]:
+    return [snap.team_names[tid] for tid in (snap.home_id, snap.away_id)]
+
+
+def team_id_for(snap: StatsSnapshot, team: str) -> str | None:
+    wanted = team.strip().lower()
+    return next((tid for tid, name in snap.team_names.items() if name.lower() == wanted), None)
+
+
+def player_id_for(snap: StatsSnapshot, player: str) -> str | None:
+    wanted = player.strip().lower()
+    return next((pid for pid, p in snap.players.items() if p.name.lower() == wanted), None)
+
+
+def public_team_stats(stats: TeamStats) -> dict[str, Any]:
     return {k: v for k, v in stats.model_dump().items() if k not in HIDDEN_TEAM_FIELDS}
+
+
+def team_stats_payload(snap: StatsSnapshot, team: str) -> dict[str, Any]:
+    tid = team_id_for(snap, team)
+    if tid is None:
+        return {"unknown_team": team, "teams": team_names(snap)}
+    name = snap.team_names[tid]
+    return {"team": name, "is_home": tid == snap.home_id, **public_team_stats(snap.teams[tid])}
+
+
+def player_payload(snap: StatsSnapshot, stats: PlayerStats) -> dict[str, Any]:
+    team = snap.team_names.get(stats.team_id, stats.team_id)
+    data = stats.model_dump(exclude={"player_id", "team_id", "name"})
+    return {"player": stats.name, "team": team, **data}
+
+
+def player_stats_payload(snap: StatsSnapshot, player: str) -> dict[str, Any]:
+    pid = player_id_for(snap, player)
+    if pid is None:
+        hint = "use a player name from get_moment or get_recent_events"
+        return {"unknown_player": player, "hint": hint}
+    return player_payload(snap, snap.players[pid])
+
+
+def last_five_payload(snap: StatsSnapshot) -> dict[str, Any]:
+    return {snap.team_names[tid]: public_team_stats(s) for tid, s in snap.last5.items()}
+
+
+def momentum_payload(snap: StatsSnapshot) -> dict[str, Any]:
+    home, away = team_names(snap)
+    return {
+        "momentum": {home: snap.momentum, away: round(-snap.momentum, 4)},
+        "scale": "-1 to 1 over the last five minutes; positive favours the named team",
+        "pressure_index": {snap.team_names[tid]: v for tid, v in snap.pressure_index.items()},
+    }
 
 
 class MatchContext:
@@ -45,12 +96,10 @@ class MatchContext:
         self.moment = moment
         self.snap = snap
         self.recent = recent
-        self._team_by_name = {name.lower(): tid for tid, name in snap.team_names.items()}
-        self._player_by_name = {p.name.lower(): pid for pid, p in snap.players.items()}
 
     @property
     def team_names(self) -> list[str]:
-        return [self.snap.team_names[tid] for tid in (self.snap.home_id, self.snap.away_id)]
+        return team_names(self.snap)
 
     # ------------------------------------------------------------------ readers
     def moment_json(self) -> str:
@@ -58,46 +107,23 @@ class MatchContext:
         for key in ID_FIELDS:
             data.pop(key, None)
         data["score"] = dict(zip(self.team_names, self.snap.score, strict=True))
-        return _dump(data)
+        return dump(data)
 
     def team_stats(self, team: str) -> str:
-        tid = self._team_by_name.get(team.strip().lower())
-        if tid is None:
-            return _dump({"unknown_team": team, "teams": self.team_names})
-        name = self.snap.team_names[tid]
-        home = tid == self.snap.home_id
-        return _dump({"team": name, "is_home": home, **_team_stats(self.snap.teams[tid])})
+        return dump(team_stats_payload(self.snap, team))
 
     def player_stats(self, player: str) -> str:
-        pid = self._player_by_name.get(player.strip().lower())
-        if pid is None:
-            hint = "use a player name from get_moment or get_recent_events"
-            return _dump({"unknown_player": player, "hint": hint})
-        ps = self.snap.players[pid]
-        team = self.snap.team_names.get(ps.team_id, ps.team_id)
-        data = ps.model_dump(exclude={"player_id", "team_id", "name"})
-        return _dump({"player": ps.name, "team": team, **data})
+        return dump(player_stats_payload(self.snap, player))
 
     def last_five_minutes(self) -> str:
-        return _dump(
-            {self.snap.team_names[tid]: _team_stats(s) for tid, s in self.snap.last5.items()}
-        )
+        return dump(last_five_payload(self.snap))
 
     def recent_events(self, n: int = MAX_RECENT) -> str:
         count = max(1, min(int(n), MAX_RECENT))
-        return _dump(events_summary(self.recent[-count:], self.snap))
+        return dump(events_summary(self.recent[-count:], self.snap))
 
     def momentum(self) -> str:
-        home, away = self.team_names
-        return _dump(
-            {
-                "momentum": {home: self.snap.momentum, away: round(-self.snap.momentum, 4)},
-                "scale": "-1 to 1 over the last five minutes; positive favours the named team",
-                "pressure_index": {
-                    self.snap.team_names[tid]: v for tid, v in self.snap.pressure_index.items()
-                },
-            }
-        )
+        return dump(momentum_payload(self.snap))
 
     def check_numbers(self, evidence_json: str) -> str:
         try:
@@ -107,9 +133,9 @@ class MatchContext:
             evidence = [Evidence.model_validate(item) for item in raw]
         except (ValueError, TypeError, ValidationError):
             issue = 'evidence must be a JSON list of {"stat": name, "value": "number"} objects'
-            return _dump({"ok": False, "issues": [issue]})
+            return dump({"ok": False, "issues": [issue]})
         if not evidence:
-            return _dump({"ok": True, "issues": []})
+            return dump({"ok": True, "issues": []})
         probe = Insight(
             insight_id="probe",
             moment_id=self.moment.moment_id,
@@ -123,7 +149,7 @@ class MatchContext:
             source="llm",
         )
         issues = [i for i in check_facts(probe, self.snap, self.moment) if i.startswith("evidence")]
-        return _dump({"ok": not issues, "issues": issues})
+        return dump({"ok": not issues, "issues": issues})
 
     # ------------------------------------------------------------------ tools
     def tools(self) -> list[FunctionTool]:
