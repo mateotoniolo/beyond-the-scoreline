@@ -17,7 +17,9 @@ async def test_get_unknown_returns_none():
     assert await InMemoryProfileStore().get("nobody") is None
 
 
-def test_make_store_defaults_to_memory():
+def test_make_store_defaults_to_memory(monkeypatch):
+    for name in ("BTS_COSMOS_ENDPOINT", "BTS_COSMOS_KEY"):
+        monkeypatch.delenv(name, raising=False)
     assert isinstance(make_store(Settings(_env_file=None)), InMemoryProfileStore)
 
 
@@ -34,6 +36,9 @@ async def test_profiles_api_roundtrip(client):
 @pytest.mark.skipif(not os.getenv("BTS_COSMOS_ENDPOINT"), reason="needs a Cosmos DB account")
 async def test_cosmos_roundtrip():
     store = CosmosProfileStore(get_settings())
-    await store.put(UserProfile(user_id="test-user", profile="fan", lang="en"))
-    got = await store.get("test-user")
-    assert got is not None and got.profile == "fan"
+    try:
+        await store.put(UserProfile(user_id="test-user", profile="fan", lang="en"))
+        got = await store.get("test-user")
+        assert got is not None and got.profile == "fan"
+    finally:
+        await store.close()

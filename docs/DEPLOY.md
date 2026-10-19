@@ -18,6 +18,20 @@ Builds the image locally for linux/amd64 (free-trial subscriptions cannot run AC
 
 Current deployment: <https://bts.ashygrass-da897bf3.eastus2.azurecontainerapps.io>.
 
+## Cosmos DB (profiles)
+
+User profiles (audience, language, followed club) persist in an Azure Cosmos DB NoSQL account with the free tier (1,000 RU/s, 25 GB), one per subscription:
+
+```bash
+az cosmosdb create --name bts-cosmos-mt2026 --resource-group bts-rg \
+  --locations regionName=eastus2 failoverPriority=0 --enable-free-tier true \
+  --kind GlobalDocumentDB --default-consistency-level Session
+az cosmosdb show --name bts-cosmos-mt2026 --resource-group bts-rg --query documentEndpoint -o tsv
+az cosmosdb keys list --name bts-cosmos-mt2026 --resource-group bts-rg --query primaryMasterKey -o tsv
+```
+
+Put the endpoint and key into `.env` as `BTS_COSMOS_ENDPOINT` and `BTS_COSMOS_KEY`; the app creates the `bts` database and the `profiles` container (partition key `/user_id`) on first use. `infra/deploy.sh` stores the key as the `cosmos-key` secret. Without these variables the app keeps profiles in memory and logs `profiles: in-memory store`.
+
 ## Judging window
 
 From 2026-10-27 to 2026-11-11 keep one replica warm so a judge never waits for a cold start:

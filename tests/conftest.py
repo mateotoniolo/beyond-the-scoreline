@@ -6,8 +6,11 @@ from bts.config import Settings
 
 
 @pytest.fixture
-def app():
-    # Hermetic: ignore any local .env so tests never reach a real model endpoint.
+def app(monkeypatch):
+    # Hermetic: ignore the local .env and the shell so tests never reach real services.
+    live = ("BTS_FOUNDRY_ENDPOINT", "BTS_FOUNDRY_API_KEY", "BTS_COSMOS_ENDPOINT", "BTS_COSMOS_KEY")
+    for name in live:
+        monkeypatch.delenv(name, raising=False)
     return create_app(Settings(_env_file=None))
 
 

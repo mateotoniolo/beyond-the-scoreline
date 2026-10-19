@@ -76,6 +76,9 @@ class CosmosProfileStore:
         container = await self._get_container()
         await container.upsert_item({"id": profile.user_id, **profile.model_dump()})
 
+    async def close(self) -> None:
+        await self._client.close()
+
 
 def make_store(settings: Settings) -> ProfileStore:
     if settings.cosmos_endpoint and settings.cosmos_key:
