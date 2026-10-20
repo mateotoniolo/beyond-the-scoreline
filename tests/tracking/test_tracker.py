@@ -8,6 +8,7 @@ from bts.sim.league import starting_xi
 from bts.tracking import FPS, MAX_FRAMES, MAX_SPEED_MS, MatchTracker
 from bts.tracking.ball import travel_seconds
 from bts.tracking.formation import formation_target, lineup_slots
+from bts.tracking.tracker import HOLD_S
 
 STEP_M = MAX_SPEED_MS / FPS
 
@@ -141,3 +142,45 @@ def test_ball_out_does_not_pull_the_passer_to_the_line(tracker11, placed11):
     t = math.ceil(out.event.t * FPS) / FPS
     for frame in tracker11.frames(t, t + 1.5):
         assert _moved_m(frame.players[out.event.player_id], pass_.start) < 3.0, frame.t
+
+
+def test_dispossessed_carrier_holds_where_the_carry_ended(tracker11, placed11):
+    # A failed carry ends in a tackle: the carrier stays at the tackle, never runs back to
+    # where the carry began.
+    i, carry = next(
+        (i, p)
+        for i, p in enumerate(placed11)
+        if p.event.type == "carry"
+        and p.event.outcome == "fail"
+        and placed11[i + 1].event.type == "duel"
+        and placed11[i + 1].event.outcome == "success"
+    )
+    pid = carry.event.player_id
+    t = math.ceil(carry.event.t * FPS) / FPS
+    for frame in tracker11.frames(t, t + HOLD_S):
+        assert _moved_m(frame.players[pid], carry.end) < 3.0, frame.t
+
+
+def test_substitute_takes_the_slot_role_not_the_position(match11):
+    # The simulator may bring the bench keeper on for an outfield player: the newcomer plays
+    # the slot (a defender's), not the keeper's spot by the goal line.
+    meta = match11.meta
+    home_id = meta.home.team_id
+    sub = next(e for e in match11.events if e.type == "substitution" and e.team_id == home_id)
+    xi = {x.player_id for x in starting_xi(meta.home)}
+    keeper = next(p for p in meta.home.players if p.position == "GK" and p.player_id not in xi)
+    swap = {"meta": {**sub.meta, "player_in": keeper.player_id}}
+    events = [e.model_copy(update=swap) if e is sub else e for e in match11.events]
+    players = [
+        p.model_copy(update={"position": "DF"}) if p.player_id == keeper.player_id else p
+        for p in meta.home.players
+    ]
+    as_defender_meta = meta.model_copy(
+        update={"home": meta.home.model_copy(update={"players": players})}
+    )
+    a = MatchTracker(meta, events).frames(sub.t + 60, sub.t + 120)
+    b = MatchTracker(as_defender_meta, events).frames(sub.t + 60, sub.t + 120)
+    assert a and [f.players[keeper.player_id] for f in a] == [
+        f.players[keeper.player_id] for f in b
+    ]
+    assert any(f.players[keeper.player_id][0] > 12 for f in a)

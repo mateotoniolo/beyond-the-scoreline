@@ -21,7 +21,7 @@ from pydantic import BaseModel
 from bts.sim.engine import PITCH_X_M, PITCH_Y_M, MatchSimulator
 from bts.sim.models import Event, MatchMeta
 from bts.tracking.ball import BallPath, travel_seconds
-from bts.tracking.formation import formation_target, lineup_slots, to_team_frame
+from bts.tracking.formation import HOME_442, formation_target, lineup_slots, to_team_frame
 from bts.tracking.possession import ON_BALL, XY, Placed, place_events
 
 FPS = 4
@@ -30,6 +30,7 @@ MAX_SPEED_MS = 9.0
 LOOKAHEAD_S = 8.0
 HOLD_S = 2.0
 ENTRY_XY: XY = (50.0, 0.0)
+KEEPER_SLOT: XY = HOME_442["GK"][0]
 _SAME_SPOT = 0.5  # units: the previous ball position counts as this event's start
 # The ball crosses the line on its own; the player it names stays where the pass left.
 _NO_PLAYER_ANCHOR = frozenset({"ball_out"})
@@ -47,6 +48,7 @@ class _Anchor:
     t_from: float  # be at xy by then
     t_to: float  # the event's own time
     xy: XY
+    hold_xy: XY  # where the action ended: the spot held after t_to
     carry_from: float | None  # a carry: follow the ball from here until t_to
 
 
@@ -60,9 +62,6 @@ class MatchTracker:
         self._placed = place_events(meta, self.events)
         self._path = BallPath(self._placed)
         self._team_of = {p.player_id: t.team_id for t in (meta.home, meta.away) for p in t.players}
-        self._keepers = {
-            p.player_id for t in (meta.home, meta.away) for p in t.players if p.position == "GK"
-        }
         self._slots: dict[str, XY] = {}
         self._roster: list[str] = []
         for team in (meta.home, meta.away):
@@ -109,7 +108,10 @@ class MatchTracker:
             for k in range(k0, k1 + 1):
                 data, roster = self._frames[k], self._rosters[k]
                 players = {
-                    pid: (round(data[3 + 2 * i], _OUTPUT_DECIMALS), round(data[4 + 2 * i], 2))
+                    pid: (
+                        round(data[3 + 2 * i], _OUTPUT_DECIMALS),
+                        round(data[4 + 2 * i], _OUTPUT_DECIMALS),
+                    )
                     for i, pid in enumerate(roster)
                 }
                 ball = (round(data[1], _OUTPUT_DECIMALS), round(data[2], _OUTPUT_DECIMALS))
@@ -133,7 +135,8 @@ class MatchTracker:
                     if math.dist(prev.end_or_start, p.start) <= _SAME_SPOT:
                         t_from = min(t_from, prev.event.t)
                 carry_from = leave if e.type == "carry" and p.end is not None else None
-                anchor = _Anchor(t_from, e.t, p.start, carry_from)
+                hold_xy = p.end if carry_from is not None and p.end is not None else p.start
+                anchor = _Anchor(t_from, e.t, p.start, hold_xy, carry_from)
                 anchors.setdefault(e.player_id, []).append(anchor)
             prev = p
             last_t = e.t
@@ -153,16 +156,16 @@ class MatchTracker:
                     if nxt is not None and nxt.t_from - t <= LOOKAHEAD_S:
                         a = nxt
                     else:
-                        return a.xy
+                        return a.hold_xy
                 if a.t_from - t <= LOOKAHEAD_S:
                     if a.carry_from is not None and a.carry_from <= t <= a.t_to:
                         return ball
                     return a.xy
         team = self._team_of[pid]
         ball_team = to_team_frame(ball, team, self._home_id)
-        target = formation_target(
-            self._slots[pid], pid in self._keepers, ball_team, self._holder == team
-        )
+        slot = self._slots[pid]
+        # The role goes with the slot: a bench keeper brought on for a defender plays as one.
+        target = formation_target(slot, slot == KEEPER_SLOT, ball_team, self._holder == team)
         return to_team_frame(target, team, self._home_id)
 
     # ------------------------------------------------------------------ integration
