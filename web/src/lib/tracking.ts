@@ -2,8 +2,10 @@ import type { Frame } from "../types";
 
 /** Frames per match second served by the API. */
 export const FPS = 4;
-/** Match seconds asked for per request (the API caps a call at 600 frames). */
+/** Match seconds asked for per request. */
 export const WINDOW_S = 150;
+/** Frames the API serves per call at most. */
+export const MAX_FRAMES = 600;
 /** Fetch the next window when fewer match seconds than this remain ahead of the clock. */
 export const AHEAD_S = 90;
 /** Frames older than this behind the clock are dropped. */

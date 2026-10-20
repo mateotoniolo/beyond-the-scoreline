@@ -1,27 +1,27 @@
+import { useMemo } from "react";
+import { frameTeams } from "../lib/possession";
 import type { MatchEvent, MatchMeta } from "../types";
 
 interface Props {
   meta: MatchMeta;
   events: MatchEvent[];
+  /** Drawn inside the SVG, over the event markers (the tracking layer). */
+  layer?: React.ReactNode;
+  /** Drawn over the monitor (the overlays). */
   children?: React.ReactNode;
 }
 
-const DEFENSIVE = new Set(["pressure", "foul", "card"]);
 const LAST = 18;
 const PITCH_H = 65; // 105 m x 68 m drawn as 100 x 65 units
 
-/** Which team's attacking frame an event is expressed in. */
-function frameTeam(e: MatchEvent, meta: MatchMeta): string {
-  if (!DEFENSIVE.has(e.type)) return e.team_id;
-  return e.team_id === meta.home.team_id ? meta.away.team_id : meta.home.team_id;
-}
-
-export function Pitch({ meta, events, children }: Props) {
+export function Pitch({ meta, events, layer, children }: Props) {
   const recent = events.slice(-LAST).filter((e) => e.type !== "period_start" && e.type !== "period_end");
+  // Each event's frame follows possession (a save sits at the goal the shot went to).
+  const frames = useMemo(() => frameTeams(events, meta.home.team_id, meta.away.team_id), [events, meta]);
   const colour = (teamId: string) => (teamId === meta.home.team_id ? meta.home.colors[0] : meta.away.colors[0]);
   // Home always attacks to the right on screen; away frames are mirrored.
   const place = (e: MatchEvent, p: { x: number; y: number }) => {
-    const mirrored = frameTeam(e, meta) !== meta.home.team_id;
+    const mirrored = (frames.get(e.event_id) ?? e.team_id) !== meta.home.team_id;
     const x = mirrored ? 100 - p.x : p.x;
     const y = (mirrored ? 100 - p.y : p.y) * (PITCH_H / 100);
     return { x, y };
@@ -52,6 +52,7 @@ export function Pitch({ meta, events, children }: Props) {
             </g>
           );
         })}
+        {layer}
       </svg>
       {children}
     </div>

@@ -135,6 +135,11 @@ button, input, select { font: inherit; color: inherit; }
 .pitch__lines rect, .pitch__lines line, .pitch__lines circle { fill: none; stroke: rgba(232, 227, 213, 0.55); stroke-width: 0.35; vector-effect: non-scaling-stroke; }
 .pitch__goal { stroke: var(--floodlight); stroke-width: 0.6; }
 
+/* Synthetic tracking: team-coloured dots with the shirt number, chalk ball. SVG user units. */
+.tracking__dot { stroke: rgba(232, 227, 213, 0.85); stroke-width: 0.22; }
+.tracking__shirt { font-family: var(--display); font-size: 1.7px; font-weight: 600; fill: var(--chalk); stroke: rgba(15, 26, 21, 0.85); stroke-width: 0.35; paint-order: stroke; pointer-events: none; }
+.tracking__ball { fill: var(--chalk); stroke: var(--night); stroke-width: 0.25; }
+
 .overlay { position: absolute; font-family: var(--body); }
 .overlay--lower {
   left: 18px; bottom: 44px;

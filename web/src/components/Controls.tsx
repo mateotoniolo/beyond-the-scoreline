@@ -24,6 +24,10 @@ interface Props {
   narrationAvailable: boolean;
   narration: boolean;
   onNarration: (on: boolean) => void;
+  /** Synthetic tracking dots on the pitch: the switch exists only when the API serves frames. */
+  trackingAvailable: boolean;
+  tracking: boolean;
+  onTracking: (on: boolean) => void;
 }
 
 const SPEEDS = [1, 2, 5, 10, 30, 60, 600];
@@ -121,6 +125,18 @@ export function Controls(p: Props) {
         >
           <span className="toggle__dot" aria-hidden="true" />
           {LABELS[p.lang].toggle}
+        </button>
+      ) : null}
+      {p.trackingAvailable ? (
+        <button
+          type="button"
+          className="toggle"
+          role="switch"
+          aria-checked={p.tracking}
+          onClick={() => p.onTracking(!p.tracking)}
+        >
+          <span className="toggle__dot" aria-hidden="true" />
+          Tracking
         </button>
       ) : null}
     </form>

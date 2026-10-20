@@ -9,9 +9,13 @@ import { Pitch } from "./components/Pitch";
 import { RecapDialog } from "./components/RecapDialog";
 import { Scoreboard } from "./components/Scoreboard";
 import { StatsPanel } from "./components/StatsPanel";
+import { TrackingLayer } from "./components/TrackingLayer";
 import { useMatchStream } from "./hooks/useMatchStream";
 import { useNarration } from "./hooks/useNarration";
+import { useTracking } from "./hooks/useTracking";
 import { activeCues } from "./lib/cues";
+import { localStorageOrNull } from "./lib/storage";
+import { readPreference as readTracking, writePreference as writeTracking } from "./lib/tracking";
 import type { Features, Lang, MatchInfo, Profile, Recap, TeamSummary } from "./types";
 
 const USER_KEY = "bts.user_id";
@@ -41,6 +45,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [recap, setRecap] = useState<Recap | null>(null);
   const [recapSeen, setRecapSeen] = useState<string | null>(null);
+  const [tracking, setTracking] = useState(() => readTracking(localStorageOrNull(), false));
 
   useEffect(() => {
     getTeams().then(setTeams).catch((e: Error) => setError(e.message));
@@ -74,6 +79,12 @@ export default function App() {
     [stream.insights],
   );
   const narration = useNarration(info?.match_id ?? null, stream.insights, profile, lang, features.narration);
+  const trackingOn = features.tracking && tracking;
+  const trackingSource = useTracking(info?.match_id ?? null, trackingOn, stream.clock, info?.speed ?? setup.speed);
+  const onTracking = (on: boolean) => {
+    writeTracking(localStorageOrNull(), on);
+    setTracking(on);
+  };
 
   useEffect(() => {
     if (!info || stream.status !== "finished" || recapSeen === info.match_id) return;
@@ -111,13 +122,20 @@ export default function App() {
           narrationAvailable={features.narration}
           narration={narration.enabled}
           onNarration={narration.setEnabled}
+          trackingAvailable={features.tracking}
+          tracking={tracking}
+          onTracking={onTracking}
         />
       </header>
       {error ? <p className="error" role="alert">{error}</p> : null}
       {info ? (
         <main className="main">
           <div className="main__monitor">
-            <Pitch meta={info.meta} events={stream.events}>
+            <Pitch
+              meta={info.meta}
+              events={stream.events}
+              layer={trackingOn ? <TrackingLayer meta={info.meta} source={trackingSource} /> : null}
+            >
               <Overlays cues={cues} moments={stream.moments} meta={info.meta} verified={verified} />
             </Pitch>
             <EventFeed events={stream.events} meta={info.meta} lang={lang} favorite={favorite} />

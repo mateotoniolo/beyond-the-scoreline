@@ -16,4 +16,6 @@ Layout: top bar with scoreboard and controls; program monitor (pitch + overlays)
 
 Ask the match (bottom of the rail): a question desk, not a chat. One input line with the heading as its label, suggested questions as quiet chips, and the last three exchanges as left-ruled rows (question in mist, answer in chalk, citation chips, a status badge and the agent step). The desk yields its log before the insight feed drops under its heading, so the rail still fits 720 px.
 
+Tracking (controls, after narration): a second pill switch, same idiom. On, the pitch monitor shows the 22 players as team-coloured dots with chalk shirt numbers and a chalk ball, moving between the event markers, which stay. Off by default on the dashboard; the markers are the record, the dots are the picture.
+
 Narration (controls, far right): a pill switch with the live-dot idiom, mist when off and floodlight when on, labelled "Narration" or "Narración"; it exists only when the deployment serves audio. The recap dialog gets a "Listen" button beside "Close" that turns into "Stop" while the clip plays. No waveform, no player chrome: the voice is the feature.
