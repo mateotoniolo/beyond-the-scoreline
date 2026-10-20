@@ -14,6 +14,8 @@ interface Props {
   onSetup: (s: Setup) => void;
   onPlay: () => void;
   playing: boolean;
+  /** The program output for the running match (`#/broadcast?…`), opened in a new tab. */
+  broadcastUrl: string | null;
   profile: Profile;
   onProfile: (p: Profile) => void;
   lang: Lang;
@@ -84,6 +86,11 @@ export function Controls(p: Props) {
       <button type="submit" className="button button--primary">
         {p.playing ? "New match" : "Play"}
       </button>
+      {p.broadcastUrl ? (
+        <a className="button" href={p.broadcastUrl} target="_blank" rel="noopener">
+          Broadcast
+        </a>
+      ) : null}
 
       <div className="segmented" role="group" aria-label="Audience">
         <button type="button" aria-pressed={p.profile === "analyst"} onClick={() => p.onProfile("analyst")}>

@@ -13,6 +13,7 @@ import { TrackingLayer } from "./components/TrackingLayer";
 import { useMatchStream } from "./hooks/useMatchStream";
 import { useNarration } from "./hooks/useNarration";
 import { useTracking } from "./hooks/useTracking";
+import { broadcastUrl } from "./lib/broadcast";
 import { activeCues } from "./lib/cues";
 import { localStorageOrNull } from "./lib/storage";
 import { readPreference as readTracking, writePreference as writeTracking } from "./lib/tracking";
@@ -113,6 +114,7 @@ export default function App() {
           onSetup={setSetup}
           onPlay={play}
           playing={info !== null}
+          broadcastUrl={info ? broadcastUrl(info.match_id, profile, lang) : null}
           profile={profile}
           onProfile={setProfile}
           lang={lang}

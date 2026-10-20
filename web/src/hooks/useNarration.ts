@@ -12,6 +12,13 @@ export interface Narration {
   unlock: () => void;
 }
 
+export interface NarrationOptions {
+  /** Remember the switch in localStorage (the dashboard); false on the program output. */
+  persist?: boolean;
+  /** The initial state instead of the remembered one. */
+  initial?: boolean;
+}
+
 const storage = (): Storage | null => {
   try {
     return typeof localStorage === "undefined" ? null : localStorage;
@@ -31,8 +38,10 @@ export function useNarration(
   profile: Profile,
   lang: Lang,
   available: boolean,
+  options: NarrationOptions = {},
 ): Narration {
-  const [enabled, setEnabledState] = useState(() => readPreference(storage()));
+  const persist = options.persist !== false;
+  const [enabled, setEnabledState] = useState(() => options.initial ?? readPreference(storage()));
   const player = useRef<ReturnType<typeof htmlAudioPlayer> | null>(null);
   const queue = useRef<NarrationQueue | null>(null);
   const get = () => {
@@ -71,11 +80,11 @@ export function useNarration(
   }, []);
   const setEnabled = useCallback(
     (on: boolean) => {
-      writePreference(storage(), on);
+      if (persist) writePreference(storage(), on);
       if (on) unlock();
       setEnabledState(on);
     },
-    [unlock],
+    [unlock, persist],
   );
   const stop = useCallback(() => get().clear(), []);
 

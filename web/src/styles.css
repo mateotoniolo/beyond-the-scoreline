@@ -258,6 +258,33 @@ button, input, select { font: inherit; color: inherit; }
 .badge--ungrounded { border: 1px solid var(--danger); color: var(--danger); }
 .badge--fallback { border: 1px dashed var(--line); color: var(--mist); }
 
+/* ---------------------------------------------------------------- broadcast (program output) */
+.broadcast { position: fixed; inset: 0; overflow: hidden; background: var(--night); }
+.broadcast__stage {
+  position: absolute; left: 50%; top: 50%;
+  width: 1280px; height: 720px; margin: -360px 0 0 -640px;
+  transform-origin: center center;
+  display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px;
+  padding: 12px 16px 14px;
+}
+.broadcast__top { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 24px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+.broadcast .scoreboard { font-size: 30px; gap: 18px; }
+.broadcast .scoreboard__score { font-size: 46px; }
+.broadcast .scoreboard__clock { font-size: 26px; }
+.broadcast .crest { width: 18px; height: 18px; }
+.broadcast__marker { display: inline-flex; align-items: center; gap: 9px; font-family: var(--display); font-size: 19px; font-weight: 600; letter-spacing: 0.02em; color: var(--mist); white-space: nowrap; }
+.broadcast__marker.is-on { color: var(--chalk); }
+.broadcast__marker.is-on .live-dot { background: var(--floodlight); box-shadow: 0 0 0 3px rgba(245, 185, 66, 0.22); }
+.broadcast .overlay--lower { left: 24px; bottom: 56px; max-width: min(70%, 760px); padding: 12px 20px 12px 18px; border-left-width: 8px; }
+.broadcast .overlay__headline { font-size: 32px; }
+.broadcast .overlay--side { right: 20px; top: 20px; width: min(32%, 380px); padding: 12px 14px; }
+.broadcast .overlay--side p { font-size: 16px; }
+.broadcast .overlay--ticker { font-size: 15px; padding: 7px 22px; }
+.broadcast__waiting { grid-row: 1 / -1; align-self: center; justify-self: center; text-align: center; }
+.broadcast__waiting h1 { font-size: 48px; font-weight: 700; line-height: 1.05; }
+.broadcast__waiting p { color: var(--mist); font-size: 18px; margin: 10px 0 0; font-variant-numeric: tabular-nums; }
+.broadcast__start { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 22px; padding: 12px 26px; }
+
 /* ---------------------------------------------------------------- footer */
 .footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--mist); font-size: 12px; border-top: 1px solid var(--line); padding-top: 6px; }
 .chip { border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; color: var(--chalk); }
