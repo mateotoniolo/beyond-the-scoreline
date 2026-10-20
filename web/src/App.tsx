@@ -30,7 +30,7 @@ function userId(): string {
 
 export default function App() {
   const [teams, setTeams] = useState<TeamSummary[]>([]);
-  const [features, setFeatures] = useState<Features>({ ask_the_match: false, narration: false });
+  const [features, setFeatures] = useState<Features>({ ask_the_match: false, narration: false, tracking: false });
   const [uid] = useState(userId);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [setup, setSetup] = useState<Setup>({ seed: 11, home: "t1", away: "t2", speed: 30 });

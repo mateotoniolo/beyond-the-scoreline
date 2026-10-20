@@ -188,6 +188,18 @@ export interface Features {
   ask_the_match: boolean;
   /** Azure AI Speech narration: audio endpoints are live and the switch is shown. */
   narration: boolean;
+  /** Synthetic tracking frames are served (`GET /api/matches/{id}/tracking`). */
+  tracking: boolean;
+}
+
+/**
+ * One synthetic tracking frame: the ball and every player on the pitch, in the screen frame
+ * (both axes 0 to 100, the home side attacking left to right), 4 per match second.
+ */
+export interface Frame {
+  t: number;
+  ball: [number, number];
+  players: Record<string, [number, number]>;
 }
 
 export interface AskRequest {

@@ -3,6 +3,7 @@ import type {
   AskResult,
   Cue,
   Features,
+  Frame,
   Insight,
   Lang,
   MatchInfo,
@@ -51,6 +52,10 @@ export const getInsights = (id: string, profile: Profile, lang: Lang) =>
 
 export const getCues = (id: string, profile: Profile, lang: Lang) =>
   json<Cue[]>(`/api/matches/${id}/cues?${variant(profile, lang)}`);
+
+/** Synthetic tracking frames for `[fromT, toT]` match seconds; at most 600 per call. */
+export const getTracking = (id: string, fromT: number, toT: number) =>
+  json<Frame[]>(`/api/matches/${id}/tracking?from_t=${fromT}&to_t=${toT}`);
 
 export const getRecap = (id: string, profile: Profile, lang: Lang) =>
   json<Recap>(`/api/matches/${id}/recap?${variant(profile, lang)}`);
