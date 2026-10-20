@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
@@ -18,6 +19,7 @@ from bts.speech import Narrator, SpeechError
 from bts.stats.moments import Moment
 from bts.stats.state import StatsSnapshot
 from bts.store.profiles import UserProfile
+from bts.tracking import FPS, MAX_FRAMES, Frame
 
 router = APIRouter(prefix="/api", tags=["matches"])
 
@@ -72,6 +74,7 @@ async def features(request: Request) -> dict[str, bool]:
     return {
         "ask_the_match": request.app.state.qa is not None,
         "narration": request.app.state.narrator is not None,
+        "tracking": request.app.state.tracking,
     }
 
 
@@ -151,6 +154,27 @@ async def insight_audio(
     if insight is None:
         raise HTTPException(status_code=404, detail="insight not ready")
     return await _audio(narrator.narrate_insight(session.match_id, insight))
+
+
+@router.get("/matches/{match_id}/tracking", response_model=list[Frame])
+async def tracking(
+    request: Request,
+    match_id: str,
+    from_t: Annotated[float, Query(ge=0)] = 0.0,
+    to_t: Annotated[float | None, Query()] = None,
+) -> list[Frame]:
+    """Synthetic tracking frames (4 per match second) for a window of the match.
+
+    At most 600 frames per call, from ``from_t`` on; a window past full time is empty.
+    """
+    session = _session(request, match_id)
+    if not request.app.state.tracking:
+        raise HTTPException(status_code=404, detail="tracking is off (BTS_TRACKING_ENABLED)")
+    if to_t is None:
+        to_t = from_t + MAX_FRAMES / FPS
+    if to_t <= from_t:
+        raise HTTPException(status_code=422, detail="to_t must be greater than from_t")
+    return await asyncio.to_thread(session.tracking_frames, from_t, to_t)
 
 
 @router.get("/matches/{match_id}/cues", response_model=list[Cue])

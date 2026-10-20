@@ -21,6 +21,7 @@ from bts.sim.league import build_league
 from bts.sim.models import Event, MatchMeta
 from bts.stats.moments import KeyMomentDetector, Moment
 from bts.stats.state import MatchState, StatsSnapshot
+from bts.tracking import Frame, MatchTracker
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ class MatchSession:
         self._moment_context: dict[str, tuple[StatsSnapshot, list[Event]]] = {}
         self._subscribers: dict[asyncio.Queue[Message | None], tuple[Profile, Lang]] = {}
         self._recaps: dict[tuple[Profile, Lang], Recap] = {}
+        self._tracker: MatchTracker | None = None
         self._task: asyncio.Task[None] | None = None
         self._children: set[asyncio.Task[None]] = set()
 
@@ -182,6 +184,22 @@ class MatchSession:
 
     def cached_insight(self, moment_id: str, profile: Profile, lang: Lang) -> Insight | None:
         return self.insights.cached(moment_id, profile, lang)
+
+    @property
+    def tracker(self) -> MatchTracker:
+        """Synthetic tracking over a replay of this seed, built on first use.
+
+        The replay is a second, independent simulator: the one feeding the stream is never
+        touched, and the tracker knows every event up front so it can serve frames ahead of
+        the clock.
+        """
+        if self._tracker is None:
+            self._tracker = MatchTracker.for_match(self.meta)
+        return self._tracker
+
+    def tracking_frames(self, from_t: float, to_t: float) -> list[Frame]:
+        """Frames in the window (sync; the route runs it in a worker thread)."""
+        return self.tracker.frames(from_t, to_t)
 
     def info(self) -> MatchInfo:
         return MatchInfo(

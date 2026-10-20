@@ -32,6 +32,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.sessions = SessionManager(app.state.llm, crew_factory=app.state.crew_factory)
     app.state.qa = make_qa(settings)  # the question desk; None when off
     app.state.narrator = make_narrator(settings)  # spoken insights; None when off
+    app.state.tracking = settings.tracking_enabled  # synthetic tracking frames
     app.state.profiles = make_store(settings)
 
     @app.get("/healthz")

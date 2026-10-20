@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     # resource), e.g. https://<resource>.cognitiveservices.azure.com/tts/cognitiveservices/v1
     speech_endpoint: str | None = None
     speech_enabled: bool | None = None
+    # Synthetic tracking frames (GET /api/matches/{id}/tracking); on by default.
+    tracking_enabled: bool = True
     cosmos_endpoint: str | None = None
     cosmos_key: str | None = None
     cosmos_database: str = "bts"
