@@ -21,7 +21,18 @@ async def test_tracking_window_grid_and_cap(client):
     assert len((await client.get(f"/api/matches/{mid}/tracking")).json()) == 600
     past = await client.get(f"/api/matches/{mid}/tracking?from_t=90000&to_t=90010")
     assert past.status_code == 200 and past.json() == []
-    for q in ("from_t=-1&to_t=5", "from_t=5&to_t=5", "from_t=5&to_t=4", "from_t=x"):
+    bad = (
+        "from_t=-1&to_t=5",
+        "from_t=5&to_t=5",
+        "from_t=5&to_t=4",
+        "from_t=x",
+        "from_t=0&to_t=inf",
+        "from_t=0&to_t=nan",
+        "from_t=inf",
+        "from_t=1e308&to_t=2e308",
+        "from_t=0&to_t=1e308",
+    )
+    for q in bad:
         assert (await client.get(f"/api/matches/{mid}/tracking?{q}")).status_code == 422, q
     assert (await client.get("/api/matches/nope/tracking")).status_code == 404
 

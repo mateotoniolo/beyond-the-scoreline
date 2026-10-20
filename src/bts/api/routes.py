@@ -26,6 +26,8 @@ router = APIRouter(prefix="/api", tags=["matches"])
 ProfileQ = Annotated[Profile, Query()]
 LangQ = Annotated[Lang, Query()]
 AUDIO_HEADERS = {"Cache-Control": "private, max-age=86400"}
+# A match lasts about 6 000 s; the bound keeps the frame arithmetic finite for any input.
+MAX_TRACKING_T = 1_000_000.0
 
 
 def _session(request: Request, match_id: str) -> MatchSession:
@@ -160,8 +162,8 @@ async def insight_audio(
 async def tracking(
     request: Request,
     match_id: str,
-    from_t: Annotated[float, Query(ge=0)] = 0.0,
-    to_t: Annotated[float | None, Query()] = None,
+    from_t: Annotated[float, Query(ge=0, le=MAX_TRACKING_T, allow_inf_nan=False)] = 0.0,
+    to_t: Annotated[float | None, Query(le=MAX_TRACKING_T, allow_inf_nan=False)] = None,
 ) -> list[Frame]:
     """Synthetic tracking frames (4 per match second) for a window of the match.
 
