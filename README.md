@@ -2,7 +2,7 @@
 
 Synthetic match intelligence engine for the Microsoft + Premier League **Inside the Game: Developer Hackathon**. Category: Best Use of Microsoft Foundry.
 
-A seeded generator plays a football-realistic match event by event. A deterministic layer turns events into statistics, momentum and key moments. A crew of Microsoft Agent Framework agents on a Microsoft Foundry model (a tactical analyst, a narrator and a fact checker) explains why each moment matters, a producer re-checks every claim against the numbers, and the result is rendered as timed overlay cues and a live web UI, personalized for analysts or fans in English or Spanish. A question desk ("Ask the match") answers free-text questions about the match on screen from its data only, with citations checked against the statistics. With narration on, Azure AI Speech reads each verified insight and the full-time recap aloud, in the viewer's language and register.
+A seeded generator plays a football-realistic match event by event. A deterministic layer turns events into statistics, momentum and key moments. A crew of Microsoft Agent Framework agents on a Microsoft Foundry model (a tactical analyst, a narrator and a fact checker) explains why each moment matters, a producer re-checks every claim against the numbers, and the result is rendered as timed overlay cues and a live web UI, personalized for analysts or fans in English or Spanish. A question desk ("Ask the match") answers free-text questions about the match on screen from its data only, with citations checked against the statistics. With narration on, Azure AI Speech reads each verified insight and the full-time recap aloud, in the viewer's language and register. A synthetic tracking layer turns the events into the positions of the 22 players and the ball, four times a match second, and a broadcast route renders the clean program output a studio puts on air.
 
 All clubs, players and venues are fictional. No real league data is bundled, derived or redistributed.
 
@@ -17,7 +17,7 @@ All clubs, players and venues are fictional. No real league data is bundled, der
 | 1 Ingest | Seeded simulator emits passes, carries, shots, duels, pressures, fouls, cards and substitutions with pitch coordinates and xG | `src/bts/sim/` |
 | 2 Interpret | Incremental possession, pass accuracy, shots, xG, pressures, final-third entries, observable momentum; rule-based key moments | `src/bts/stats/` |
 | 3 Explain | Agent Framework crew (analyst with tools, narrator, fact checker, producer) on Foundry structured JSON, one retry, simple pipeline and template fallbacks | `src/bts/insights/crew/`, `src/bts/insights/` |
-| 4 Render | Lower third, side panel and ticker cues with `t_start` and `duration_s`; SSE stream; REST endpoints | `src/bts/insights/cues.py`, `src/bts/api/` |
+| 4 Render | Lower third, side panel and ticker cues with `t_start` and `duration_s`; SSE stream; REST endpoints; synthetic tracking frames at 4 fps; the broadcast program output | `src/bts/insights/cues.py`, `src/bts/api/`, `src/bts/tracking/`, `web/src/Broadcast.tsx` |
 | 5 Personalize | Analyst or fan, English or Spanish, follow-your-club mode, profiles in Azure Cosmos DB; "Ask the match": a grounded Q&A agent with tools over the live match and a citation check (`docs/ASK_THE_MATCH.md`); spoken insights and recap with Azure AI Speech, one neural voice per language and profile | `web/`, `src/bts/store/`, `src/bts/insights/qa/`, `src/bts/speech/` |
 
 Architecture diagram and data flow: `docs/ARCHITECTURE.md`. Judging criteria to evidence: `docs/RUBRIC_MAP.md`.
@@ -48,7 +48,7 @@ pnpm -C web install
 pnpm -C web dev
 ```
 
-Open <http://localhost:5173>, pick a seed (11 is a good first match), press play. Without a Foundry endpoint every insight comes from the bilingual templates; copy `.env.example` to `.env` to use Microsoft Foundry (see `docs/FOUNDRY.md`). `BTS_AGENT_MODE=simple` swaps the crew for the two-prompt pipeline; `BTS_QA_ENABLED=false` hides the "Ask the match" desk (on by default whenever the crew is on). Narration needs `BTS_SPEECH_KEY` and `BTS_SPEECH_REGION` (see `docs/DEPLOY.md`); `BTS_SPEECH_ENABLED=false` hides the switch.
+Open <http://localhost:5173>, pick a seed (11 is a good first match), press play. Without a Foundry endpoint every insight comes from the bilingual templates; copy `.env.example` to `.env` to use Microsoft Foundry (see `docs/FOUNDRY.md`). `BTS_AGENT_MODE=simple` swaps the crew for the two-prompt pipeline; `BTS_QA_ENABLED=false` hides the "Ask the match" desk (on by default whenever the crew is on). Narration needs `BTS_SPEECH_KEY` and `BTS_SPEECH_REGION` (see `docs/DEPLOY.md`); `BTS_SPEECH_ENABLED=false` hides the switch. `BTS_TRACKING_ENABLED=false` hides the tracking switch and the frames endpoint (on by default).
 
 One container with everything, as deployed:
 
@@ -58,6 +58,14 @@ docker run --rm -p 8000:8000 --env-file .env bts
 ```
 
 Checks: `uv run pytest`, `uv run ruff check .`, `pnpm -C web typecheck && pnpm -C web test && pnpm -C web build`.
+
+## Broadcast output
+
+![The broadcast program output: scoreboard, pitch with tracked players, a verified lower third, side panel and ticker](docs/images/broadcast.png)
+
+The **Broadcast** button next to Play opens `#/broadcast?match=<id>&profile=analyst&lang=en` in a new tab: a 1280×720 program output scaled to any 16:9 viewport, with the scoreboard, the pitch, the producer's timed overlays, an "Agent crew verified" marker that lights while the lower third on air passed the checks, and the tracking dots. No controls, no feeds: point a studio monitor or an OBS browser source at it. `&narration=1` adds a Start narration button (audio needs a click), `&tracking=0` hides the dots.
+
+The **Tracking** switch on the dashboard draws the same dots on the pitch monitor. They come from `bts.tracking`, a deterministic layer with no model: the ball follows the events at their recorded speeds, every player moves toward the next event they take part in or their formation home at no more than 9 m/s, and `GET /api/matches/{id}/tracking?from_t&to_t` serves the frames (schema in `docs/DATA.md`).
 
 ## Synthetic data realism
 

@@ -27,6 +27,9 @@ flowchart LR
   QA -. "tools read" .-> SSE
   UI -- "GET …/audio" --> SP2["bts.speech<br/>SSML, cached MP3 clips"]
   SP2 -. "REST text to speech" .-> AS["Azure AI Speech<br/>neural voices en-US, es-AR"]
+  GEN -. "same seed, replayed" .-> TR["bts.tracking<br/>22 players + ball at 4 fps<br/>no model"]
+  TR -- "GET …/tracking" --> BC["#/broadcast<br/>program output<br/>(studio, OBS)"]
+  CU --> BC
 ```
 
 ## Data flow for one match
@@ -59,6 +62,16 @@ Measured locally against `gpt-5-mini` with minimal reasoning: a verified insight
 ## Narration
 
 `bts.speech` turns a verified insight (headline, pause, why it matters) or the full-time recap (title and paragraphs) into an MP3 clip through Azure AI Speech's REST text-to-speech endpoint, one neural voice per language and profile (`en-US-AndrewMultilingualNeural` and `en-US-AvaMultilingualNeural`; `es-AR-TomasNeural` and `es-AR-ElenaNeural`, the fan voices a touch quicker and brighter). The SSE stream never waits for it: the UI pulls `GET /api/matches/{id}/insights/{moment_id}/audio` once the insight is on screen and `GET /api/matches/{id}/recap/audio` from the recap dialog, and the `Narrator` caches each clip in memory per match and insight (FIFO, 512 clips) so a replay or a second viewer costs nothing. Every request has a 10 s timeout; a failure answers 503 with its reason and is never cached. The UI's narration switch queues clips one at a time, plays each insight at most once, skips a clip whose turn comes more than 60 s after it arrived, and marks the backlog as read when it is switched on mid-match. Behind `BTS_SPEECH_ENABLED` (on whenever `BTS_SPEECH_KEY` and `BTS_SPEECH_REGION` are set); `GET /api/features` tells the UI.
+
+## Synthetic tracking
+
+`bts.tracking` turns a match's event list into positions for the 22 players and the ball at 4 frames per match second, deterministically and without a model, so the pitch monitor shows a match rather than a scatter of markers and a renderer gets the kind of data tracking providers sell. Events are recorded in the attacking frame of the side in possession, so a possession rule (`bts.tracking.possession`, mirrored in `web/src/lib/possession.ts` for the event markers) places every event in one screen frame: both axes 0 to 100, the home side attacking left to right all match long. The ball (`bts.tracking.ball`) is at an event's end exactly at the event's time (the simulator stamps an action when it ends), leaves its start at the event's own recorded `ball_speed` or `shot_speed`, rests between restarts and bridges a kick-off or a keeper's restart at 8 m/s. Each player (`bts.tracking.tracker`) moves every frame toward a target at no more than 9 m/s (2.25 m per frame, the no-teleport guarantee): the start of the next event they take part in when it is at most 8 s away (a receiver gets there before the pass arrives), the ball while carrying it, the spot they just acted at for 2 s, or their 4-4-2 home shifted toward the ball and forward or back with possession. Substitutes enter from the halfway line, a sent-off player disappears at the card. Checked over seed 11: the median player is exactly at the spot when the ball leaves, and 27 of 1 408 anchors arrive more than 3 m late, the ones where the simulator itself asks more than 9 m/s.
+
+`GET /api/matches/{id}/tracking?from_t&to_t` serves `[{t, ball: [x, y], players: {player_id: [x, y]}}]`, at most 600 frames per call (150 s), behind `BTS_TRACKING_ENABLED` (default on; `GET /api/features` reports `tracking`). The session replays its seed in a second simulator on the first request, so it knows every event up front and can serve frames ahead of its clock without touching the generator that feeds the stream; frames are integrated in order in a worker thread and cached compactly (600 frames in about 14 ms, a whole match in about 280 ms and 6 MB). The UI (`web/src/lib/tracking.ts`, `useTracking`, `TrackingLayer`) fetches windows ahead of the clock, interpolates between frames and draws the dots with `requestAnimationFrame` straight to the SVG, never through React state: measured in headless Chromium at 1280×720 with the match at 30×, the layer draws in 0.05 ms per frame on average (0.2 ms worst) and the page holds the display's frame rate (120 fps on the test laptop, no frame over 33 ms in 10 s).
+
+## Broadcast output
+
+`#/broadcast?match=<id>&profile=&lang=&narration=&tracking=` is the program output: the same SPA, a second root picked from the hash (`web/src/Broadcast.tsx`). A 1280×720 stage scaled to the viewport with one CSS transform (1280×720 and 1920×1080 show the same frame, no scroll), the shared `Scoreboard` and clock in a top band with an "Agent crew verified" marker that lights while the lower third on air passed the checks, and the shared `Pitch` full-bleed with the shared `Overlays` on the producer's timing and the tracking layer on by default. No controls, no feeds, no footer: what a studio monitor or an OBS browser source puts on air. The dashboard's Broadcast button opens it for the running match, profile and language; an unknown or finished match shows "Waiting for the match"; narration (`narration=1`) starts after one click on the stage because of the browsers' autoplay rules and never writes the dashboard's preference.
 
 ## What the badges mean
 

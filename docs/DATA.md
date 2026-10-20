@@ -31,6 +31,22 @@ Both axes run from 0 to 100, as in the Wyscout public dataset convention. The te
 
 Type names follow the [kloppy](https://github.com/PySport/kloppy) standard event model: `pass`, `carry`, `shot`, `duel`, `interception`, `clearance`, `recovery`, `miscontrol`, `ball_out`, `foul`, `goalkeeper`, `pressure`, `substitution`, `card`, plus `period_start` and `period_end` markers.
 
+## Tracking frames
+
+`GET /api/matches/{id}/tracking?from_t=0&to_t=150` returns synthetic tracking frames derived from the events (no model, deterministic per seed), 4 per match second, at most 600 per call:
+
+```json
+[{"t": 12.25, "ball": [51.3, 48.9], "players": {"t1p1": [6.0, 50.0], "t2p9": [58.4, 31.2]}}]
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `t` | float | Match second on the `0.25 s` grid |
+| `ball` | `[x, y]` | The ball, screen frame |
+| `players` | `{player_id: [x, y]}` | Every player on the pitch (the starting elevens, then substitutes in place of the players they replaced; a sent-off player disappears) |
+
+The **screen frame** keeps the event convention (both axes 0 to 100, 105 m × 68 m) but fixes the direction: the home side attacks from `x = 0` to `x = 100` for the whole match and the away side the other way, so a renderer never flips anything. Positions are rounded to two decimals. The ball is at each event's `end` (or `start`) exactly at the event's `t` and moves linearly in between at the event's `ball_speed` or `shot_speed`; players move at no more than 9 m/s toward the events they take part in, otherwise toward a 4-4-2 shape shifted with possession. The frames are synthetic: they illustrate the events, they do not measure anyone.
+
 ## Mapping to Wyscout names
 
 | Ours | Wyscout |
