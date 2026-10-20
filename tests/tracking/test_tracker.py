@@ -131,3 +131,13 @@ def test_frames_window_after_a_long_skip(match11):
     again = tracker.frames(5000, 5010)
     assert again == frames and len(frames) == 41
     assert time.perf_counter() - t0 < first / 5
+
+
+def test_ball_out_does_not_pull_the_passer_to_the_line(tracker11, placed11):
+    # The passer stays where the ball left; only the ball crosses the touchline.
+    i, out = next((i, p) for i, p in enumerate(placed11) if p.event.type == "ball_out")
+    pass_ = placed11[i - 1]
+    assert pass_.event.type == "pass" and pass_.event.player_id == out.event.player_id
+    t = math.ceil(out.event.t * FPS) / FPS
+    for frame in tracker11.frames(t, t + 1.5):
+        assert _moved_m(frame.players[out.event.player_id], pass_.start) < 3.0, frame.t

@@ -31,6 +31,8 @@ LOOKAHEAD_S = 8.0
 HOLD_S = 2.0
 ENTRY_XY: XY = (50.0, 0.0)
 _SAME_SPOT = 0.5  # units: the previous ball position counts as this event's start
+# The ball crosses the line on its own; the player it names stays where the pass left.
+_NO_PLAYER_ANCHOR = frozenset({"ball_out"})
 _OUTPUT_DECIMALS = 2
 
 
@@ -125,7 +127,7 @@ class MatchTracker:
             e = p.event
             travel = min(travel_seconds(p), max(0.0, e.t - last_t))
             leave = e.t - travel
-            if e.player_id:
+            if e.player_id and e.type not in _NO_PLAYER_ANCHOR:
                 t_from = leave if e.type in ON_BALL else e.t
                 if prev is not None and prev.end_or_start is not None:
                     if math.dist(prev.end_or_start, p.start) <= _SAME_SPOT:
