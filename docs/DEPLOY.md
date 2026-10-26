@@ -75,6 +75,8 @@ az monitor app-insights query --app bts-insights --resource-group bts-rg --offse
 
 ## Judging window
 
+Since 2026-10-26 the app keeps one replica warm (`az containerapp update -n bts -g bts-rg --min-replicas 1 --max-replicas 1`) and the `gpt-5-mini` deployment runs at capacity 500 (see `docs/FOUNDRY.md`). Matches live in the replica's memory, so keep `--max-replicas 1`: a second replica would not know the matches the first one is playing.
+
 From 2026-10-27 to 2026-11-11 keep one replica warm so a judge never waits for a cold start:
 
 ```bash

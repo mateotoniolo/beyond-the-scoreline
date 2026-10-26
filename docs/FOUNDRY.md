@@ -17,7 +17,13 @@ We use the Responses API with `instructions=` for the system prompt, `max_output
 ## Provisioning (manual, once)
 
 1. In the Azure portal create a **Microsoft Foundry** resource (or Azure OpenAI resource) in a region that lists `gpt-5-mini`, and a project.
-2. Deploy `gpt-5-mini` (Global Standard). If the deployment is refused for quota, open the quota request form linked from the deployment page and deploy `gpt-4.1-mini` meanwhile.
+2. Deploy `gpt-5-mini` (Global Standard) with capacity 500 (500 requests and 500,000 tokens per minute). Every crew insight makes several calls (analyst, narrator, fact checker and their tool rounds); at the default capacity of 50 a fast match that fires many moments at once gets 429 rate-limit errors and falls back to templates. Capacity has no fixed cost; tokens are billed as used:
+
+   ```bash
+   az cognitiveservices account deployment create -g bts-rg -n bts-foundry-mt2026 --deployment-name gpt-5-mini \
+     --model-format OpenAI --model-name gpt-5-mini --model-version 2025-08-07 --sku-name GlobalStandard --sku-capacity 500
+   ```
+ If the deployment is refused for quota, open the quota request form linked from the deployment page and deploy `gpt-4.1-mini` meanwhile.
 3. Copy the resource's Azure OpenAI v1 endpoint (`https://<resource>.openai.azure.com/openai/v1/`) and a key into `.env` (see `.env.example`). Never commit `.env`.
 4. Smoke test:
 
